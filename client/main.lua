@@ -9,14 +9,15 @@ local players = {}
 local tick = 0
 
 local global_tick = 0;
+local server_tick = 0;
 
 local keys_down_this_tick = {}
 
 function love.load()
+  love.window.setMode(320, 180);
   Client = sock.newClient("localhost", 22123)
   --Client = sock.newClient("owlkaline.com", 22123);
   Client:setSerialization(bitser.dumps, bitser.loads)
-
 
   Client:on("connect", function(data)
     print("Connected to server")
@@ -24,6 +25,12 @@ function love.load()
 
   Client:on("disconnect", function(data)
     print("Disconnected from server")
+  end);
+
+  Client:on("playerDisconnected", function(idx)
+    print("Player " .. idx .. " Disconnected!")
+    players[idx] = nil
+    --table.remove(players, idx)
   end);
 
   Client:setSchema('spawnPlayer', {
@@ -39,7 +46,8 @@ function love.load()
     global_tick = data.global_tick;
 
     player_num = idx;
-    table.insert(players, idx, Player.new(x, y));
+    -- table.insert(players, idx, Player.new(x, y));
+    players[idx] = Player.new(x, y)
   end);
 
   Client:setSchema('playerState', {
@@ -50,6 +58,7 @@ function love.load()
   })
   Client:on('playerState', function(data)
     local g_tick = data.global_tick
+    server_tick = g_tick;
     local idx = data.index;
     local x = data.x;
     local y = data.y;
@@ -93,6 +102,9 @@ function love.update(dt)
       if tick >= Networking.tick_rate then
         tick = tick - Networking.tick_rate
         global_tick = global_tick + 1;
+        while global_tick <= server_tick do
+          global_tick = global_tick + 1;
+        end
 
         if player_num then
           --   Client:setSchema('playerPosition', { "x", 'y' })
@@ -106,12 +118,14 @@ function love.update(dt)
 end
 
 function love.draw()
-  for _, player in ipairs(players) do
+  for _, player in pairs(players) do
     love.graphics.setColor(0, 1, 0, 1)
     love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
   end
 
-  love.graphics.print(Client:getState(), 5, 5)
+  love.graphics.print(
+    Client:getState() .. " Gloal Tick: " .. global_tick .. " Difference: " .. global_tick - server_tick,
+    5, 5)
   if player_num then
     love.graphics.print("Player " .. player_num, 5, 25)
   else

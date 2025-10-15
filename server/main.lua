@@ -12,6 +12,14 @@ local players = {}
 local floor = {}
 
 function love.load()
+  love.physics.setMeter(180) --the height of a meter our worlds will be 64px
+  world = love.physics.newWorld(0, 9.81 * 64, true)
+  objects = {}
+  objects.ground = {}
+  objects.ground.body = love.physics.newBody(world, 320 / 2, 180 - 10 / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+  objects.ground.shape = love.physics.newRectangleShape(320, 10)           --make a rectangle with a width of 650 and a height of 50
+  objects.ground.fixture = love.physics.newFixture(objects.ground.body, objects.ground.shape)
+
   tick = 0
 
   floor[0] = Floor.new()
@@ -23,14 +31,25 @@ function love.load()
     local idx = client:getIndex();
     print("player " .. idx .. " connected.")
     local player = Player.new(10 * idx, 10 * idx);
-    table.insert(players, idx, player)
+    player.body = love.physics.newBody(world, player.x, player.y, 'dynamic');
+    player.shape = love.physics.newRectangleShape(player.width * 0.5, player.height * 0.5);
+    player.fixture = love.physics.newFixture(player.body, player.shape, 1);
+
+    player.body:setFixedRotation(true);
+    player.body:setInertia(0.2);
+
+    players[idx] = player;
+    --table.insert(players, idx, player)
     client:send("spawnPlayer", { idx, player.x, player.y, global_tick });
   end)
 
   Server:on('disconnect', function(data, client)
     local idx = client:getIndex();
     print("player " .. idx .. " disconnected.")
-    table.remove(players, idx);
+    players[idx] = nil
+    --table.remove(players, idx);
+
+    Server:sendToAll("playerDisconnected", idx);
   end)
 
   --Server:setSchema('playerPosition', { "x", 'y' })
@@ -43,27 +62,30 @@ function love.load()
   Server:setSchema("playerInput", { "global_index", "player_input" })
   Server:on('playerInput', function(data, client)
     local idx = client:getIndex();
-    players[idx].inputs[data.global_index] = data.player_input;
+    if players[idx] then
+      players[idx].inputs[data.global_index] = data.player_input;
+    end
   end)
 end
 
 function love.update(dt)
+  world:update(dt)
   Server:update()
 
-  for i, player in ipairs(players) do
-    if player.x < 0 then
-      player.x = 0;
-    end
-    if player.x > 500.0 then
-      player.x = 500.0;
-    end
-    if player.y < 0 then
-      player.y = 0;
-    end
-    if player.y > 500.0 then
-      player.y = 500.0;
-    end
-  end
+  --for i, player in ipairs(players) do
+  --  if player.x < 0 then
+  --    player.x = 0;
+  --  end
+  --  if player.x > 500.0 then
+  --    player.x = 500.0;
+  --  end
+  --  if player.y < 0 then
+  --    player.y = 0;
+  --  end
+  --  if player.y > 500.0 then
+  --    player.y = 500.0;
+  --  end
+  --end
 
   tick = tick + dt;
 
@@ -71,14 +93,15 @@ function love.update(dt)
     tick = tick - Networking.tick_rate;
 
     -- run everything from current tick
-    for i, player in ipairs(players) do
+    for i, player in pairs(players) do
       player:input(global_tick, Networking.tick_rate);
     end
 
     global_tick = global_tick + 1;
 
-    for i, player in ipairs(players) do
-      Server:sendToAll('playerState', { global_tick, i, player.x, player.y })
+    for i, player in pairs(players) do
+      local x, y = player.body:getX(), player.body:getY();
+      Server:sendToAll('playerState', { global_tick, i, x, y })
     end
   end
 end

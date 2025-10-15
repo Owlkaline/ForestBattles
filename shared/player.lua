@@ -28,14 +28,16 @@ function Player:input(global_tick, dt)
     velocity.y = -speed;
   end
   if inputs['a'] then
-    velocity.x = speed;
-  end
-  if inputs['d'] then
     velocity.x = -speed;
   end
+  if inputs['d'] then
+    velocity.x = speed;
+  end
 
-  self.x = self.x - velocity.x * dt;
-  self.y = self.y - velocity.y * dt;
+  local x, y = self.body:getLinearVelocity();
+  self.body:setLinearVelocity(velocity.x, y)
+  --self.x = self.x - velocity.x * dt;
+  --self.y = self.y - velocity.y * dt;
 end
 
 return Player;
