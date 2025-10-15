@@ -3,6 +3,7 @@ local sock = require('lib/sock')
 
 local Networking = require('shared/networking')
 require('shared/player')
+require('pixel')
 
 local player_num = nil;
 local players = {}
@@ -14,7 +15,8 @@ local server_tick = 0;
 local keys_down_this_tick = {}
 
 function love.load()
-  love.window.setMode(320, 180);
+  Pixel.load();
+
   Client = sock.newClient("localhost", 22123)
   --Client = sock.newClient("owlkaline.com", 22123);
   Client:setSerialization(bitser.dumps, bitser.loads)
@@ -118,10 +120,14 @@ function love.update(dt)
 end
 
 function love.draw()
+  Pixel:startDraw();
+
   for _, player in pairs(players) do
     love.graphics.setColor(0, 1, 0, 1)
     love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
   end
+
+  Pixel:endDraw();
 
   love.graphics.print(
     Client:getState() .. " Gloal Tick: " .. global_tick .. " Difference: " .. global_tick - server_tick,
