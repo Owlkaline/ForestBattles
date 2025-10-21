@@ -11,7 +11,7 @@ function SetSchemas(client_server)
     "x",
     "y"
   })
-  client_server:setSchema('AddObject', {
+  client_server:setSchema('addObject', {
     "x",
     "y",
     "width",

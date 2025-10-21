@@ -11,6 +11,7 @@ local world_size = { width = 320, height = 180 }
 local global_tick = 0;
 local tick = 0
 
+local objects = {}
 local players = {}
 local floor = {}
 
@@ -28,23 +29,20 @@ function love.load()
   SetSchemas(Server);
 
   local floor_height = 10;
-  local floor_width = world_size.width;
+  local floor_width = world_size.width * 0.5;
   local floor_x = 0.0;
   local floor_y = world_size.height - floor_height;
-  objects = {}
-  objects.ground = Floor.new(floor_x, floor_y, floor_width, floor_height);
-  --objects.ground:AddPhysicsBody();
-
-  objects.ground.body = love.physics.newBody(world, floor_x + floor_width * 0.5, floor_y + floor_height * 0.5) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-  objects.ground.shape = love.physics.newRectangleShape(floor_width, floor_height)                             --make a rectangle with a width of 650 and a height of 50
-  objects.ground.fixture = love.physics.newFixture(objects.ground.body, objects.ground.shape)
+  objects[0] = Floor.new(floor_x, floor_y, floor_width, floor_height);
+  objects[0].body = love.physics.newBody(world, floor_x + floor_width * 0.5, floor_y + floor_height * 0.5) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+  objects[0].shape = love.physics.newRectangleShape(floor_width, floor_height)                             --make a rectangle with a width of 650 and a height of 50
+  objects[0].fixture = love.physics.newFixture(objects[0].body, objects[0].shape)
 
   Server:on("connect", function(data, client)
     local idx = client:getIndex();
     print("player " .. idx .. " connected.")
     local player = Player.new(10 * idx, 10 * idx);
-    player.body = love.physics.newBody(world, player.x, player.y, 'dynamic');
-    player.shape = love.physics.newRectangleShape(player.width * 0.5, player.height * 0.5);
+    player.body = love.physics.newBody(world, player.x + player.width * 0.5, player.y + player.height * 0.5, 'dynamic');
+    player.shape = love.physics.newRectangleShape(player.width, player.height);
     player.fixture = love.physics.newFixture(player.body, player.shape, 1);
 
     player.body:setFixedRotation(true);
@@ -56,7 +54,9 @@ function love.load()
 
 
     client:send("spawnPlayer", { idx, player.x, player.y, global_tick });
-    --client:send("AddObject", { x=objects.ground.x, y=objects.ground.y, width=objects.ground.width, height=objects.ground.height });
+    for _, object in pairs(objects) do
+      client:send("addObject", { object.x, object.y, object.width, object.height });
+    end
   end)
 
   Server:on('disconnect', function(data, client)
@@ -116,8 +116,19 @@ function love.update(dt)
     global_tick = global_tick + 1;
 
     for i, player in pairs(players) do
-      local x, y = player.body:getX(), player.body:getY();
+      local x, y = player.body:getX() - player.width * 0.5, player.body:getY() - player.height * 0.5;
       Server:sendToAll('playerState', { global_tick, i, x, y })
     end
+  end
+end
+
+function love.draw()
+  for _, player in pairs(players) do
+    love.graphics.polygon("fill", player.body:getWorldPoints(
+      player.shape:getPoints()))
+  end
+  for _, object in pairs(objects) do
+    love.graphics.polygon("fill", object.body:getWorldPoints(
+      object.shape:getPoints()))
   end
 end

@@ -65,7 +65,7 @@ function love.load()
     end
   end)
 
-  Client:on("AddObject", function(object)
+  Client:on("addObject", function(object)
     local idx = objects.length or 0;
     objects[idx] = {}
     print(object.x)
@@ -129,15 +129,16 @@ function love.draw()
       goto continue
     end
     love.graphics.setColor(0, 1, 0, 1)
-    love.graphics.rectangle("fill", player.x + player.width * 0.5, player.y - player.height, player.width,
-      player.height)
+    love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
+    --love.graphics.rectangle("fill", player.x + player.width * 0.5, player.y - player.height, player.width,   player.height)
     ::continue::
   end
 
+  love.graphics.setColor(0, 0, 1, 1)
   for _, object in pairs(objects) do
-    love.graphics.setColor(0, 0, 1, 1)
     love.graphics.rectangle("fill", object.x, object.y, object.width, object.height)
   end
+  love.graphics.setColor(1, 1, 1, 1)
 
   Pixel:endDraw();
 
