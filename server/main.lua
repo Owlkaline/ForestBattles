@@ -5,6 +5,8 @@ require('shared/player')
 local Floor = require('shared/floor')
 local Networking = require('shared/networking')
 
+local world_size = {width = 320, height = 180}
+
 local global_tick = 0;
 local tick = 0
 
@@ -14,18 +16,26 @@ local floor = {}
 function love.load()
   love.physics.setMeter(180) --the height of a meter our worlds will be 64px
   world = love.physics.newWorld(0, 9.81 * 64, true)
-  objects = {}
-  objects.ground = {}
-  objects.ground.body = love.physics.newBody(world, 320 / 2, 180 - 10 / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-  objects.ground.shape = love.physics.newRectangleShape(320, 10)           --make a rectangle with a width of 650 and a height of 50
-  objects.ground.fixture = love.physics.newFixture(objects.ground.body, objects.ground.shape)
+  --objects.ground.body = love.physics.newBody(world, 320 / 2, 180 - 10 / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+  --objects.ground.shape = love.physics.newRectangleShape(320, 10)           --make a rectangle with a width of 650 and a height of 50
+  --objects.ground.fixture = love.physics.newFixture(objects.ground.body, objects.ground.shape)
 
   tick = 0
 
-  floor[0] = Floor.new()
-
   Server = sock.newServer("*", 22123);
   Server:setSerialization(bitser.dumps, bitser.loads)
+
+  local floor_height = 10;
+  local floor_width = world_size.width;
+  local floor_x = 0.0;
+  local floor_y = world_size.height - floor_height;
+  objects = {}
+  objects.ground = Floor.new(floor_x, floor_y, floor_width, floor_height);
+  --objects.ground:AddPhysicsBody();
+
+  objects.ground.body = love.physics.newBody(world, floor_x+floor_width*0.5, floor_y + floor_height*0.5) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+  objects.ground.shape = love.physics.newRectangleShape(floor_width, floor_height)           --make a rectangle with a width of 650 and a height of 50
+  objects.ground.fixture = love.physics.newFixture(objects.ground.body, objects.ground.shape)
 
   Server:on("connect", function(data, client)
     local idx = client:getIndex();
@@ -40,7 +50,9 @@ function love.load()
 
     players[idx] = player;
     --table.insert(players, idx, player)
-    client:send("spawnPlayer", { idx, player.x, player.y, global_tick });
+    print("Server connect: " .. idx)
+    client:send("spawnPlayer", { idx, x=player.x, y=player.y, global_tick=global_tick });
+    client:send("AddObject", { x=objects.ground.x, y=objects.ground.y, width=objects.ground.width, height=objects.ground.height });
   end)
 
   Server:on('disconnect', function(data, client)
@@ -101,7 +113,7 @@ function love.update(dt)
 
     for i, player in pairs(players) do
       local x, y = player.body:getX(), player.body:getY();
-      Server:sendToAll('playerState', { global_tick, i, x, y })
+      Server:sendToAll('playerState', { global_tick = global_tick, index=i, x=x, y=y })
     end
   end
 end

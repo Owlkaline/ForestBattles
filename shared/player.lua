@@ -5,8 +5,8 @@ function Player.new(x, y)
 
   player.x = x
   player.y = y
-  player.width = 10
-  player.height = 10
+  player.width = 24
+  player.height = 64
   player.inputs = {}
 
   return player;
