@@ -8,8 +8,20 @@ function Player.new(x, y)
   player.width = 16
   player.height = 16
   player.inputs = {}
+  player.isPlayer = true
 
   return player;
+end
+
+function Player:filter()
+  return function(item, other)
+    if other.isPlayer then
+      return 'push'
+    elseif other.isWall then
+      return 'slide'
+    end
+    return nil
+  end
 end
 
 function Player:input(global_tick, dt)
@@ -21,12 +33,12 @@ function Player:input(global_tick, dt)
     return
   end
 
-  if inputs['w'] then
-    velocity.y = speed;
-  end
-  if inputs['s'] then
-    velocity.y = -speed;
-  end
+  --if inputs['w'] then
+  --  velocity.y = speed;
+  --end
+  --if inputs['s'] then
+  --  velocity.y = -speed;
+  --end
   if inputs['a'] then
     velocity.x = -speed;
   end
@@ -34,10 +46,25 @@ function Player:input(global_tick, dt)
     velocity.x = speed;
   end
 
-  local x, y = self.body:getLinearVelocity();
-  self.body:setLinearVelocity(velocity.x, y)
-  --self.x = self.x - velocity.x * dt;
-  --self.y = self.y - velocity.y * dt;
+  --local x, y = self.body:getLinearVelocity();
+
+  --self.body:setLinearVelocity(velocity.x, y)
+
+  --self.body:setLinearVelocity(velocity.x, y)
+
+  if inputs['space'] and y == 0 then
+    print("space bar pressed")
+    velocity.y = speed;
+    -- y = -speed;
+    -- self.body:applyLinearImpulse(0, -speed * 0.5 * dt);
+    --self.body:applyForce(0, -speed)
+  end
+
+  --self.body:applyForce(velocity.x, 0);
+
+  --self.body
+  self.x = self.x + velocity.x * dt;
+  self.y = self.y + velocity.y * dt;
 end
 
 return Player;

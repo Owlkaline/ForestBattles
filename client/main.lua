@@ -102,6 +102,9 @@ function love.update(dt)
       if love.keyboard.isDown("d") then
         keys_down_this_tick["d"] = true;
       end
+      if love.keyboard.isDown("space") then
+        keys_down_this_tick["space"] = true;
+      end
 
       if tick >= Networking.tick_rate then
         tick = tick - Networking.tick_rate

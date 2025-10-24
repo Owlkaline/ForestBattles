@@ -6,6 +6,7 @@ function Floor.new(x, y, width, height)
     y = y,
     width = width,
     height = height,
+    isWall = true
   }
 end
 
