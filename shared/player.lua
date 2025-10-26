@@ -25,6 +25,8 @@ function Player:filter()
   return function(item, other)
     if other.isPlayer then
       return 'push'
+    elseif other.isBounce then
+      return 'velocity_bounce'
     elseif other.isWall then
       return 'slide'
     end
@@ -41,6 +43,7 @@ function Player:input(global_tick, dt)
   local override_velocity = { x = 0, y = 0 };
   local speed = 200.0;
   local jump_velocity = 300.0;
+  local started_grounded = self.grounded;
 
   local inputs = self.inputs[global_tick];
   if inputs == nil then
@@ -53,10 +56,10 @@ function Player:input(global_tick, dt)
   --if inputs['s'] then
   --  velocity.y = -speed;
   --end
-  if inputs['a'] then
+  if inputs['left'] then
     override_velocity.x = -speed;
   end
-  if inputs['d'] then
+  if inputs['right'] then
     override_velocity.x = speed;
   end
 
@@ -65,10 +68,15 @@ function Player:input(global_tick, dt)
   --self.body:setLinearVelocity(velocity.x, y)
 
   --self.body:setLinearVelocity(velocity.x, y)
-  if self.grounded then
+
+  self.velocity.x = override_velocity.x;
+  if started_grounded then
     self.velocity.y = 0;
+    --   self.grounded = false;
+  else
+    --    self.velocity.x = self.velocity.x + override_velocity.x * dt * 5.0;
   end
-  if inputs['space'] and self.grounded then
+  if inputs['jump'] and started_grounded then
     self.velocity.y = -jump_velocity;
     self.grounded = false;
     -- y = -speed;
@@ -76,7 +84,6 @@ function Player:input(global_tick, dt)
     --self.body:applyForce(0, -speed)
   end
 
-  self.velocity.x = override_velocity.x;
 
   --self.body:applyForce(velocity.x, 0);
   --self.body

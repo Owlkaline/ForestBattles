@@ -1,7 +1,7 @@
 local camera = {
   x = 0,
   y = 0,
-  scale = 1,
+  scale = 2,
   subpixels = 2,
   integer_scaling = true
 }
@@ -27,8 +27,8 @@ function camera:safeScale(canvas)
   self.y = (math.floor((windowHeight - self.scaledHeight) / 2))
 end
 
-function camera.setScale(scale)
-  camera.scale = scale
+function camera:setScale(scale)
+  self.scale = scale
 end
 
 return camera;

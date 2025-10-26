@@ -5,6 +5,7 @@ function SetSchemas(client_server)
     "y",
     "global_tick"
   })
+  client_server:setSchema("worldSize", { "width", "height" })
   client_server:setSchema('playerState', {
     "global_tick",
     "index",
@@ -12,6 +13,7 @@ function SetSchemas(client_server)
     "y"
   })
   client_server:setSchema('addObject', {
+    "idx",
     "x",
     "y",
     "width",
