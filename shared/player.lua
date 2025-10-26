@@ -1,14 +1,22 @@
 Player = {}
 
+DefaultWeight = 8;
+
 function Player.new(x, y)
   local player = setmetatable({}, { __index = Player })
 
   player.x = x
   player.y = y
+  player.velocity = {
+    x = 0,
+    y = 0,
+  };
   player.width = 16
   player.height = 16
   player.inputs = {}
   player.isPlayer = true
+  player.weight = DefaultWeight
+  player.grounded = false;
 
   return player;
 end
@@ -24,9 +32,15 @@ function Player:filter()
   end
 end
 
+function Player:move(dt)
+  self.x = self.x + self.velocity.x * dt;
+  self.y = self.y + self.velocity.y * dt;
+end
+
 function Player:input(global_tick, dt)
-  local velocity = { x = 0, y = 0 };
+  local override_velocity = { x = 0, y = 0 };
   local speed = 200.0;
+  local jump_velocity = 300.0;
 
   local inputs = self.inputs[global_tick];
   if inputs == nil then
@@ -40,10 +54,10 @@ function Player:input(global_tick, dt)
   --  velocity.y = -speed;
   --end
   if inputs['a'] then
-    velocity.x = -speed;
+    override_velocity.x = -speed;
   end
   if inputs['d'] then
-    velocity.x = speed;
+    override_velocity.x = speed;
   end
 
   --local x, y = self.body:getLinearVelocity();
@@ -51,20 +65,21 @@ function Player:input(global_tick, dt)
   --self.body:setLinearVelocity(velocity.x, y)
 
   --self.body:setLinearVelocity(velocity.x, y)
-
-  if inputs['space'] and y == 0 then
-    print("space bar pressed")
-    velocity.y = speed;
+  if self.grounded then
+    self.velocity.y = 0;
+  end
+  if inputs['space'] and self.grounded then
+    self.velocity.y = -jump_velocity;
+    self.grounded = false;
     -- y = -speed;
     -- self.body:applyLinearImpulse(0, -speed * 0.5 * dt);
     --self.body:applyForce(0, -speed)
   end
 
-  --self.body:applyForce(velocity.x, 0);
+  self.velocity.x = override_velocity.x;
 
+  --self.body:applyForce(velocity.x, 0);
   --self.body
-  self.x = self.x + velocity.x * dt;
-  self.y = self.y + velocity.y * dt;
 end
 
 return Player;

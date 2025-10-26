@@ -6,6 +6,9 @@ require('shared/player')
 require('shared/schemas')
 require('pixel')
 
+local green_colour = { 0, 1, 0, 1 }
+local blue_colour = { 0, 0, 1, 1 }
+
 local player_num = nil;
 local players = {}
 local objects = {}
@@ -127,11 +130,15 @@ end
 function love.draw()
   Pixel:startDraw();
 
-  for _, player in pairs(players) do
+  for i, player in pairs(players) do
     if player.x == nil then
       goto continue
     end
-    love.graphics.setColor(0, 1, 0, 1)
+    if i == 1 then
+      love.graphics.setColor(0, 1, 0, 1)
+    else
+      love.graphics.setColor(1, 0, 0, 1)
+    end
     love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
     --love.graphics.rectangle("fill", player.x + player.width * 0.5, player.y - player.height, player.width,   player.height)
     ::continue::
