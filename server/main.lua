@@ -29,7 +29,7 @@ local push = function(world, col, x, y, w, h, goalX, goalY, filter)
   local is_below  =
       col.item.y - col.other.y > 0
 
-  if col.other.grounded then
+  if col.other.grounded and (col.normal.y ~= 0 or col.normal.x ~= 0) then
     if col.item.x > col.other.x then
       goalX = col.item.x + col.other.width * (0.1 * DefaultWeight) / col.other.weight
     else
@@ -40,6 +40,14 @@ local push = function(world, col, x, y, w, h, goalX, goalY, filter)
   col.push        = { x = goalX, y = goalY }
 
   local cols, len = world:project(col.item, x, y, w, h, goalX, goalY, filter)
+
+  if col.item.grounded then
+    if col.item.x > col.other.x then
+      col.other.x = goalX - col.other.width;
+    else
+      col.other.x = goalX + col.item.width;
+    end
+  end
 
   return goalX, goalY, cols, len
 end
