@@ -2,9 +2,10 @@ local bitser = require('lib/bitser')
 local sock = require('lib/sock')
 
 local Networking = require('shared/networking')
-require('shared/player')
+require('shared/players')
 require('shared/schemas')
 require('pixel')
+Animation = require('animation')
 
 local green_colour = { 0, 1, 0, 1 }
 local blue_colour = { 0, 0, 1, 1 }
@@ -24,6 +25,11 @@ local background = {};
 
 function love.load()
   Pixel:load();
+
+  SpriteSheetAnimation = Animation.new('assets/spritesheet.png', 32)
+  Animation.add_animation(SpriteSheetAnimation, "counting", 1, 16);
+  Animation.add_animation(SpriteSheetAnimation, "midcounting", 4, 12);
+  Animation.play_animation(SpriteSheetAnimation, "counting")
 
   background = love.graphics.newImage("assets/title-screen.png")
 
@@ -59,7 +65,7 @@ function love.load()
     global_tick = gt;
 
     player_num = idx;
-    players[idx] = Player.new(x, y)
+    players[idx] = Players.new(x, y)
   end);
 
   Client:on('playerState', function(data)
@@ -68,13 +74,16 @@ function love.load()
     local idx = data.index;
     local x = data.x;
     local y = data.y;
+    local damage = data.damage;
 
     if players[idx] then
       players[idx].x = x;
       players[idx].y = y;
     else
-      players[idx] = Player.new(x, y);
+      players[idx] = Players.new(x, y);
     end
+
+    players[idx].damage = damage;
 
     if idx == player_num then
       Pixel:followEntity(players[player_num], world_size);
@@ -84,10 +93,6 @@ function love.load()
   Client:on("addObject", function(object)
     local idx = object.idx;
     objects[idx] = {}
-    print(object.x)
-    print(object.y)
-    print(object.width)
-    print(object.height)
     objects[idx] = object;
   end);
 
@@ -101,6 +106,8 @@ end
 
 function love.update(dt)
   Client:update();
+
+  Animation.update(SpriteSheetAnimation, dt)
 
   if player_num then
     if Client:getState() == 'connected' then
@@ -121,6 +128,12 @@ function love.update(dt)
       if love.keyboard.isDown("space") then
         keys_down_this_tick["jump"] = true;
       end
+      if love.keyboard.isDown("p") then
+        keys_down_this_tick[Attacks.Attack1] = true
+      end
+      if love.keyboard.isDown("o") then
+        keys_down_this_tick[Attacks.Attack2] = true
+      end
 
       local joysticks = love.joystick.getJoysticks();
       for _, joystick in pairs(joysticks) do
@@ -131,6 +144,9 @@ function love.update(dt)
         if x_axis > 0.1 then
           keys_down_this_tick['right'] = true;
         end
+        if joystick:isGamepadDown('x') then
+          keys_down_this_tick[Attacks.Attack1] = true;
+        end
         if joystick:isGamepadDown('a') then
           keys_down_this_tick['jump'] = true;
         end
@@ -138,22 +154,25 @@ function love.update(dt)
 
       if tick >= Networking.tick_rate then
         tick = tick - Networking.tick_rate
-        global_tick = global_tick + 1;
-        if global_tick > server_tick then
-          global_tick = server_tick;
-        end
-        while global_tick <= server_tick do
-          global_tick = global_tick + 1;
-        end
+        --if global_tick > server_tick then
+        --  global_tick = server_tick;
+        --end
+        --while global_tick <= server_tick do
+        --  global_tick = global_tick + 1;
+        --end
 
         if player_num then
           --   Client:setSchema('playerPosition', { "x", 'y' })
           --  Client:send('playerPosition', { players[player_num].x, players[player_num].y })
+          -- print("Sending input ")
+          --print(keys_down_this_tick ~= nil)
           Client:send("playerInput", { global_tick, keys_down_this_tick })
+          players[player_num].input[global_tick] = keys_down_this_tick;
           keys_down_this_tick = {}
 
           Pixel:followEntity(players[player_num], world_size);
           --  Pixel.camera:FollowEntity(players[player_num]);
+          global_tick = global_tick + 1;
         end
       end
     end
@@ -175,7 +194,9 @@ function love.draw()
     else
       love.graphics.setColor(1, 0, 0, 1)
     end
-    love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
+    Animation.draw(SpriteSheetAnimation, player.x, player.y)
+    --love.graphics.draw(SpriteSheetExample, SpriteSheetFrames[CurrentFrame], player.x, player.y); --, player.width, player.height)
+    --love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
     --love.graphics.rectangle("fill", player.x + player.width * 0.5, player.y - player.height, player.width,   player.height)
     ::continue::
   end
@@ -193,6 +214,7 @@ function love.draw()
     5, 5)
   if player_num then
     love.graphics.print("Player " .. player_num, 5, 25)
+    love.graphics.print("Damage " .. players[player_num].damage .. "%", 5, 45)
   else
     love.graphics.print("No player number assigned", 5, 25)
   end

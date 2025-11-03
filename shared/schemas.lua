@@ -1,4 +1,8 @@
 function SetSchemas(client_server)
+  client_server:setSchema('playerInput', {
+    "client_tick",
+    "player_input"
+  })
   client_server:setSchema('spawnPlayer', {
     "index",
     "x",
@@ -10,7 +14,8 @@ function SetSchemas(client_server)
     "global_tick",
     "index",
     "x",
-    "y"
+    "y",
+    "damage"
   })
   client_server:setSchema('addObject', {
     "idx",

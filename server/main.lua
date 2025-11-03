@@ -4,79 +4,35 @@ local sock = require('lib/sock')
 local bump = require('lib/bump')
 
 require('shared/useful')
-require('shared/player')
+require('shared/players')
 require('shared/schemas')
 local Floor = require('shared/floor')
 local Bounce = require('shared/bounce')
 local Networking = require('shared/networking')
+local Simulation = require('shared/simulation')
 
 local world_size = { width = 320 * 2.0, height = 180 * 2.0 }
 
-local global_tick = 0;
-local tick = 0
+local simulation = {};
 
-local objects = {}
-local players = {}
-local floor = {}
-local world = {}
+--local global_tick = 0;
+--local tick = 0
 
-local push = function(world, col, x, y, w, h, goalX, goalY, filter)
-  goalX           = goalX or x
-  goalY           = goalY or y
+--local objects = {}
+--local players = {}
+--local world = {}
+--local attack_boxs = {}
 
-  local tch, move = col.touch, col.move
-
-  local is_below  =
-      col.item.y - col.other.y > 0
-
-  if col.other.grounded and (col.normal.y ~= 0 or col.normal.x ~= 0) then
-    if col.item.x > col.other.x then
-      goalX = col.item.x + col.other.width * (0.1 * DefaultWeight) / col.other.weight
-    else
-      goalX = col.item.x - col.other.width * (0.1 * DefaultWeight) / col.other.weight;
-    end
-  end
-
-  col.push        = { x = goalX, y = goalY }
-
-  local cols, len = world:project(col.item, x, y, w, h, goalX, goalY, filter)
-
-  if col.item.grounded then
-    if col.item.x > col.other.x then
-      col.other.x = goalX - col.other.width;
-    else
-      col.other.x = goalX + col.item.width;
-    end
-  end
-
-  return goalX, goalY, cols, len
-end
-
-local velocity_bounce = function(world, col, x, y, w, h, goalX, goalY, filter)
-  goalX = goalX or x
-  goalY = goalY or y
-
-  local tch, move = col.touch, col.move
-  local tx, ty = tch.x, tch.y
-
-  local bx, by = tx, ty
-
-  goalX = tch.x;
-  goalY = tch.y;
-
-  if col.normal.x ~= 0 then
-    col.item.velocity.x = col.normal.x * 300.0;
-    col.item.velocity.y = -300.0;
-  end
-  if col.normal.y ~= 0 then
-    local diff = col.item.x - col.other.x - col.other.width * 0.5;
-    col.item.velocity.x = -Sign(diff) * 300; --math.min(math.abs(diff), 300.0);
-    col.item.velocity.y = col.normal.y * 300.0;
-  end
-
-  local cols, len = world:project(col.item, x, y, w, h, goalX, goalY, filter)
-  return goalX, goalY, cols, len
-end
+--local hurt = function(world, col, x, y, w, h, goalX, goalY, filter)
+--  local atk_box = col.item.isAttackBox and col.item or col.other
+--  local player = col.item.isAttackBox and col.other or col.item
+--
+--  if SetContains(atk_box.players_hit, player) == false then
+--    player.damage = player.damage + atk_box.damage;
+--    print("Damge dealt!")
+--    table.insert(atk_box.players_hit, player);
+--  end
+--end
 
 function love.load()
   tick = 0
@@ -86,11 +42,15 @@ function love.load()
   print("Server started.")
   SetSchemas(Server);
 
-  world = bump.newWorld();
-  world:addResponse('push', push)
-  world:addResponse('velocity_bounce', velocity_bounce)
+  --world = bump.newWorld();
+  --world:addResponse('push', push)
+  --world:addResponse('velocity_bounce', velocity_bounce)
+
+  simulation = Simulation.new(Networking.tick_rate)
 
   print("world created")
+
+  local objects = {};
 
   local floor_height = 10;
   local floor_width = 160.0;
@@ -127,23 +87,24 @@ function love.load()
   objects[4] = Bounce.new(left, bottom, width, bounds_thickness);
 
   for _, object in pairs(objects) do
-    world:add(object, object.x, object.y, object.width, object.height);
+    Simulation.spawn_object(simulation, object)
   end
 
   Server:on("connect", function(data, client)
     local idx = client:getIndex();
     print("player " .. idx .. " connected.")
-    local player = Player.new(0 * (idx * 10), -10.0);
+    local x, y = Simulation.spawn_player(simulation, idx, Character.Mushroom)
+    local tick = Simulation.current_tick(simulation);
+    --local player = Players.new(0 * (idx * 10), -10.0, Character.Mushroom);
 
-    player.index = idx;
-    players[idx] = player;
-    world:add(players[idx], player.x, player.y, player.width, player.height)
+    --player.index = idx;
+    --players[idx] = player;
+    --world:add(players[idx], player.x, player.y, player.width, player.height)
     print("Server connect: " .. idx)
 
-
-    client:send("spawnPlayer", { idx, player.x, player.y, global_tick });
+    client:send("spawnPlayer", { idx, x, y, tick });
     client:send("worldSize", { world_size.width, world_size.height })
-    for i, object in pairs(objects) do
+    for i, object in pairs(Simulation.objects(simulation)) do
       client:send("addObject", { i, object.x, object.y, object.width, object.height });
     end
   end)
@@ -151,84 +112,43 @@ function love.load()
   Server:on('disconnect', function(data, client)
     local idx = client:getIndex();
     print("player " .. idx .. " disconnected.")
-    world:remove(players[idx]);
-    players[idx] = nil
-    --table.remove(players, idx);
+    Simulation.despawn_player(simulation, idx)
+    --world:remove(players[idx]);
+    --players[idx] = nil
 
     Server:sendToAll("playerDisconnected", idx);
   end)
 
-  Server:setSchema("playerInput", { "global_index", "player_input" })
   Server:on('playerInput', function(data, client)
     local idx = client:getIndex();
-    if players[idx] then
-      players[idx].inputs[data.global_index] = data.player_input;
-    end
+    local tick_idx = data.client_tick;
+    Simulation.add_input(simulation, idx, tick_idx, data.player_input)
+    --if players[idx] then
+    --  players[idx].inputs[data.global_index] = data.player_input;
+    --end
   end)
+end
+
+local function send_player_states()
+  local current_tick = Simulation.current_tick(simulation);
+  for _, player in pairs(Simulation.players(simulation)) do
+    local x, y, idx = player.x, player.y, player.index;
+    Server:sendToAll('playerState', { current_tick, idx, x, y, player.damage })
+  end
 end
 
 function love.update(dt)
   Server:update()
 
-  tick = tick + dt;
+  local did_update, new_objects = Simulation.lockstep_update(simulation, dt);
+  --local did_update, new_objects = Simulation.yolo_update(simulation, dt);
 
-  if tick >= Networking.tick_rate then
-    tick = tick - Networking.tick_rate;
-
-    -- run everything from current tick
-    for i, player in pairs(players) do
-      local initial_y = player.velocity.y;
-      player.velocity.y = player.velocity.y + player.weight * 98.0 * Networking.tick_rate;
-      --player.y = player.y + 98.0 * Networking.tick_rate;
-      player:input(global_tick, Networking.tick_rate);
-
-
-      player:move(Networking.tick_rate)
-      local new_x, new_y, cols, len = world:move(player, player.x, player.y, player:filter());
-      player.x = new_x;
-      player.y = new_y;
-      player.grounded = false
-      for j = 1, len do
-        --if cols[j].other.isPlayer then
-        --  local other_player = cols[j].other;
-        --  local is_below =
-        --      player.y - other_player.y > 0
-
-        --  if other_player.grounded then                      --and other_player.y < player.y then
-        --    if player.x > other_player.x then                -- + other_player.width then
-        --      player.x = player.x + other_player.width * 0.1 --other_player.x + other_player.width * 0.1;
-        --    else
-        --      player.x = player.x - player.width * 0.1;      --other_player.x - player.width * 0.1;
-        --    end
-        --  end
-        --end
-        if cols[j].other.isDeath then
-          player.x = 0;
-          player.y = -10;
-          world:update(player, player.x, player.y)
-          player.velocity.x = 0;
-          player.velocity.y = 0;
-          player.grounded = false;
-        end
-
-        if cols[j].other.isFloor then
-          if cols[j].normal.y < 0 then
-            player.grounded = true;
-          end
-        end
-      end
+  if did_update then
+    -- print("sending player data")
+    for _, box in pairs(new_objects) do
+      Server:sendToAll("addObject", { 99999, box.x, box.y, box.width, box.height });
     end
-
-    global_tick = global_tick + 1;
-
-    for i, player in pairs(players) do
-      local x, y = player.x, player.y;
-      --print("left side: " .. x)
-      --print("right side: " .. x + player.width)
-      --print("top side: " .. y)
-      --print("bottom side: " .. y + player.height)
-      Server:sendToAll('playerState', { global_tick, i, x, y })
-    end
+    send_player_states()
   end
 end
 
