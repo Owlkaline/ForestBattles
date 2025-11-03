@@ -2,20 +2,22 @@ local bitser = require('lib/bitser')
 local sock = require('lib/sock')
 
 local Networking = require('shared/networking')
+local Simulation = require('shared/simulation')
 require('shared/players')
 require('shared/schemas')
 require('pixel')
-Animation = require('animation')
+local Animation = require('animation')
 
 local green_colour = { 0, 1, 0, 1 }
 local blue_colour = { 0, 0, 1, 1 }
 
 local player_num = nil;
-local players = {}
-local objects = {}
-local tick = 0
+local simulation = {}
+--local players = {}
+--local objects = {}
+--local tick = 0
 
-local global_tick = 0;
+--local global_tick = 0;
 local server_tick = 0;
 local world_size = 0;
 
@@ -33,6 +35,8 @@ function love.load()
 
   background = love.graphics.newImage("assets/title-screen.png")
 
+  simulation = Simulation.new(Networking.tick_rate)
+
   Client = sock.newClient("localhost", 22123)
   --Client = sock.newClient("owlkaline.com", 22123);
   Client:setSerialization(bitser.dumps, bitser.loads)
@@ -48,7 +52,8 @@ function love.load()
 
   Client:on("playerDisconnected", function(idx)
     print("Player " .. idx .. " Disconnected!")
-    players[idx] = nil
+    --players[idx] = nil
+    Simulation.despawn_player(simulation, idx)
   end);
 
   Client:on("worldSize", function(actualWorldSize)
@@ -62,10 +67,15 @@ function love.load()
     local x = data.x;
     local y = data.y;
     local gt = data.global_tick;
-    global_tick = gt;
+
+    Simulation.spawn_player(simulation, idx, Character.Mushroom)
+    Simulation.set_player_position(simulation, x, y, idx)
+    Simulation.set_tick(simulation, gt)
+
+    --global_tick = gt;
 
     player_num = idx;
-    players[idx] = Players.new(x, y)
+    --players[idx] = Players.new(x, y)
   end);
 
   Client:on('playerState', function(data)
@@ -76,24 +86,31 @@ function love.load()
     local y = data.y;
     local damage = data.damage;
 
-    if players[idx] then
-      players[idx].x = x;
-      players[idx].y = y;
+    if Simulation.players(simulation)[idx] then
     else
-      players[idx] = Players.new(x, y);
+      Simulation.spawn_player(simulation, idx, Character.Mushroom)
     end
 
-    players[idx].damage = damage;
+    Simulation.set_player_position(simulation, x, y, idx)
+    Simulation.set_player_damage(simulation, damage, idx)
+
+    --if players[idx] then
+    --  players[idx].x = x;
+    --  players[idx].y = y;
+    --
+    --else
+    --  players[idx] = Players.new(x, y);
+    --end
+
+    --players[idx].damage = damage;
 
     if idx == player_num then
-      Pixel:followEntity(players[player_num], world_size);
+      Pixel:followEntity(Simulation.players(simulation)[player_num], world_size);
     end
   end)
 
   Client:on("addObject", function(object)
-    local idx = object.idx;
-    objects[idx] = {}
-    objects[idx] = object;
+    Simulation.spawn_object(simulation, object)
   end);
 
 
@@ -111,7 +128,7 @@ function love.update(dt)
 
   if player_num then
     if Client:getState() == 'connected' then
-      tick = tick + dt;
+      --tick = tick + dt;
 
       --if love.keyboard.isDown("w") then
       --  keys_down_this_tick["w"] = true;
@@ -152,31 +169,37 @@ function love.update(dt)
         end
       end
 
-      if tick >= Networking.tick_rate then
-        tick = tick - Networking.tick_rate
-        --if global_tick > server_tick then
-        --  global_tick = server_tick;
-        --end
-        --while global_tick <= server_tick do
-        --  global_tick = global_tick + 1;
-        --end
+      --if tick >= Networking.tick_rate then
+      --tick = tick - Networking.tick_rate
+      --if global_tick > server_tick then
+      --  global_tick = server_tick;
+      --end
+      --while global_tick <= server_tick do
+      --  global_tick = global_tick + 1;
+      --end
 
-        if player_num then
+      if player_num then
+        local updated, _ = Simulation.update_tick_only(simulation, dt)
+        if updated then
+          local current_tick = Simulation.current_tick(simulation)
           --   Client:setSchema('playerPosition', { "x", 'y' })
           --  Client:send('playerPosition', { players[player_num].x, players[player_num].y })
           -- print("Sending input ")
           --print(keys_down_this_tick ~= nil)
-          Client:send("playerInput", { global_tick, keys_down_this_tick })
-          players[player_num].input[global_tick] = keys_down_this_tick;
+          Client:send("playerInput", { current_tick - 1, keys_down_this_tick })
+          Simulation.add_input(simulation, player_num, current_tick - 1, keys_down_this_tick)
+          --simulation.players()[player_num].input[global_tick] = keys_down_this_tick;
           keys_down_this_tick = {}
-
-          Pixel:followEntity(players[player_num], world_size);
-          --  Pixel.camera:FollowEntity(players[player_num]);
-          global_tick = global_tick + 1;
         end
+
+
+        Pixel:followEntity(Simulation.players(simulation)[player_num], world_size);
+        --  Pixel.camera:FollowEntity(players[player_num]);
+        --global_tick = global_tick + 1;
       end
     end
   end
+  --  end
 end
 
 function love.draw()
@@ -185,7 +208,7 @@ function love.draw()
   love.graphics.setColor(1, 1, 1)
   love.graphics.draw(background, -Pixel.canvas:getWidth() * 0.5, -Pixel.canvas:getHeight() * 0.5)
 
-  for i, player in pairs(players) do
+  for i, player in pairs(Simulation.players(simulation)) do
     if player.x == nil then
       goto continue
     end
@@ -202,19 +225,21 @@ function love.draw()
   end
 
   love.graphics.setColor(0, 0, 1, 1)
-  for _, object in pairs(objects) do
+  for _, object in pairs(Simulation.objects(simulation)) do
     love.graphics.rectangle("fill", object.x, object.y, object.width, object.height)
   end
   love.graphics.setColor(1, 1, 1, 1)
 
   Pixel:endDraw();
 
+  local current_tick = Simulation.current_tick(simulation);
+
   love.graphics.print(
-    Client:getState() .. " Gloal Tick: " .. global_tick .. " Difference: " .. global_tick - server_tick,
+    Client:getState() .. " Current Tick: " .. current_tick .. " Difference: " .. current_tick - server_tick,
     5, 5)
   if player_num then
     love.graphics.print("Player " .. player_num, 5, 25)
-    love.graphics.print("Damage " .. players[player_num].damage .. "%", 5, 45)
+    love.graphics.print("Damage " .. Simulation.players(simulation)[player_num].damage .. "%", 5, 45)
   else
     love.graphics.print("No player number assigned", 5, 25)
   end

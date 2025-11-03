@@ -105,7 +105,7 @@ function love.load()
     client:send("spawnPlayer", { idx, x, y, tick });
     client:send("worldSize", { world_size.width, world_size.height })
     for i, object in pairs(Simulation.objects(simulation)) do
-      client:send("addObject", { i, object.x, object.y, object.width, object.height });
+      client:send("addObject", { i, object.x, object.y, object.width, object.height, object.isFloor, object.isWall });
     end
   end)
 
@@ -146,7 +146,7 @@ function love.update(dt)
   if did_update then
     -- print("sending player data")
     for _, box in pairs(new_objects) do
-      Server:sendToAll("addObject", { 99999, box.x, box.y, box.width, box.height });
+      Server:sendToAll("addObject", { 99999, box.x, box.y, box.width, box.height, box.isFloor, box.isWall });
     end
     send_player_states()
   end

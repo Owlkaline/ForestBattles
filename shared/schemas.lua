@@ -22,6 +22,8 @@ function SetSchemas(client_server)
     "x",
     "y",
     "width",
-    "height"
+    "height",
+    "isFloor",
+    "isWall"
   })
 end

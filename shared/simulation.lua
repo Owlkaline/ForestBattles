@@ -79,7 +79,7 @@ function simulation.new(tick_rate)
 end
 
 function simulation.spawn_player(sim, index, character)
-  local player = Players.new(0 * (index * 10), -10.0, Character.Mushroom);
+  local player = Players.new(0 * (index * 10), -10.0, character);
 
   player.index = index;
   sim.players[index] = player;
@@ -100,6 +100,21 @@ end
 
 function simulation.add_input(sim, player_num, tick, input)
   sim.players[player_num].inputs[tick] = input;
+end
+
+function simulation.set_tick(sim, new_tick)
+  sim.tick = new_tick
+end
+
+function simulation.set_player_position(sim, x, y, index)
+  sim.players[index].x = x;
+  sim.players[index].y = y;
+  Players.update_world(sim.players, sim.world);
+  --sim.world:move(sim.players[index], x, y)
+end
+
+function simulation.set_player_damage(sim, damage, index)
+  sim.players[index].damage = damage;
 end
 
 function simulation.current_tick(sim)
@@ -148,6 +163,21 @@ function simulation.lockstep_update(sim, dt)
       did_update = true;
       sim.tick = sim.tick + 1;
     end
+  end
+
+  return did_update, new_objects
+end
+
+function simulation.update_tick_only(sim, dt)
+  local did_update = false;
+  local new_objects = {}
+
+  sim.dt = sim.dt + dt;
+
+  if sim.dt >= sim.tick_rate then
+    sim.dt = sim.dt - sim.tick_rate;
+    sim.tick = sim.tick + 1;
+    did_update = true
   end
 
   return did_update, new_objects
