@@ -35,130 +35,167 @@ local simulation = {};
 --end
 
 function love.load()
-  tick = 0
+    tick = 0
 
-  Server = sock.newServer("*", 22123);
-  Server:setSerialization(bitser.dumps, bitser.loads)
-  print("Server started.")
-  SetSchemas(Server);
+    Server = sock.newServer("*", 22123);
+    Server:setSerialization(bitser.dumps, bitser.loads)
+    print("Server started.")
+    SetSchemas(Server);
 
-  --world = bump.newWorld();
-  --world:addResponse('push', push)
-  --world:addResponse('velocity_bounce', velocity_bounce)
+    --world = bump.newWorld();
+    --world:addResponse('push', push)
+    --world:addResponse('velocity_bounce', velocity_bounce)
 
-  simulation = Simulation.new(Networking.tick_rate)
+    simulation = Simulation.new(Networking.tick_rate)
 
-  print("world created")
+    print("world created")
 
-  local objects = {};
+    local objects = {};
 
-  local floor_height = 10;
-  local floor_width = 160.0;
-  local floor_x = -floor_width * 0.5;
-  local floor_y = -floor_height;
-  objects[0] = Floor.new(floor_x, floor_y, floor_width, floor_height);
+    local floor_height = 10;
+    local floor_width = 160.0;
+    local floor_x = -floor_width * 0.5;
+    local floor_y = -floor_height;
+    objects[0] = Floor.new(floor_x, floor_y, floor_width, floor_height);
 
-  local bounds_thickness = 5.0;
-  local width = world_size.width;
-  local height = world_size.height;
-  local half_height = height * 0.5
-  local half_width = width * 0.5
-  local half_thickness = bounds_thickness * 0.5;
-  local bottom = half_height;
-  local top = -half_height;
-  local left = -half_width;
-  local right = half_width;
-  -- left wall
-  objects[1] = Bounce.new(left - bounds_thickness, -half_height, bounds_thickness, height);
-  -- top
-  -- player underneath
-  -- height 180 -16 = 164
-  -- top top 164+5 = 169
-  objects[2] = Bounce.new(left, top - bounds_thickness, width, bounds_thickness);
-  -- right
-  objects[3] = Bounce.new(right, -half_height, bounds_thickness, height);
+    local bounds_thickness = 5.0;
+    local width = world_size.width;
+    local height = world_size.height;
+    local half_height = height * 0.5
+    local half_width = width * 0.5
+    local half_thickness = bounds_thickness * 0.5;
+    local bottom = half_height;
+    local top = -half_height;
+    local left = -half_width;
+    local right = half_width;
+    -- left wall
+    objects[1] = Bounce.new(left - bounds_thickness, -half_height, bounds_thickness, height);
+    -- top
+    -- player underneath
+    -- height 180 -16 = 164
+    -- top top 164+5 = 169
+    objects[2] = Bounce.new(left, top - bounds_thickness, width, bounds_thickness);
+    -- right
+    objects[3] = Bounce.new(right, -half_height, bounds_thickness, height);
 
-  -- 640 x 360
-  -- x = -320
-  -- width = 640
-  -- y = 180
-  -- height = 5
-  -- bottom
-  objects[4] = Bounce.new(left, bottom, width, bounds_thickness);
+    -- 640 x 360
+    -- x = -320
+    -- width = 640
+    -- y = 180
+    -- height = 5
+    -- bottom
+    objects[4] = Bounce.new(left, bottom, width, bounds_thickness);
 
-  for _, object in pairs(objects) do
-    Simulation.spawn_object(simulation, object)
-  end
-
-  Server:on("connect", function(data, client)
-    local idx = client:getIndex();
-    print("player " .. idx .. " connected.")
-    local x, y = Simulation.spawn_player(simulation, idx, Character.Mushroom)
-    local tick = Simulation.current_tick(simulation);
-    --local player = Players.new(0 * (idx * 10), -10.0, Character.Mushroom);
-
-    --player.index = idx;
-    --players[idx] = player;
-    --world:add(players[idx], player.x, player.y, player.width, player.height)
-    print("Server connect: " .. idx)
-
-    client:send("spawnPlayer", { idx, x, y, tick });
-    client:send("worldSize", { world_size.width, world_size.height })
-    for i, object in pairs(Simulation.objects(simulation)) do
-      client:send("addObject", { i, object.x, object.y, object.width, object.height, object.isFloor, object.isWall });
+    for _, object in pairs(objects) do
+        Simulation.spawn_object(simulation, object)
     end
-  end)
 
-  Server:on('disconnect', function(data, client)
-    local idx = client:getIndex();
-    print("player " .. idx .. " disconnected.")
-    Simulation.despawn_player(simulation, idx)
-    --world:remove(players[idx]);
-    --players[idx] = nil
+    Server:on("connect", function(data, client)
+        local idx = client:getIndex();
+        print("player " .. idx .. " connected.")
+        local x, y = Simulation.spawn_player(simulation, idx, Character.Mushroom)
+        local tick = Simulation.current_tick(simulation);
+        --local player = Players.new(0 * (idx * 10), -10.0, Character.Mushroom);
 
-    Server:sendToAll("playerDisconnected", idx);
-  end)
+        --player.index = idx;
+        --players[idx] = player;
+        --world:add(players[idx], player.x, player.y, player.width, player.height)
+        print("Server connect: " .. idx)
 
-  Server:on('playerInput', function(data, client)
-    local idx = client:getIndex();
-    local tick_idx = data.client_tick;
-    Simulation.add_input(simulation, idx, tick_idx, data.player_input)
-    --if players[idx] then
-    --  players[idx].inputs[data.global_index] = data.player_input;
-    --end
-  end)
+        client:send("spawnPlayer", { idx, x, y, tick });
+        client:send("worldSize", { world_size.width, world_size.height })
+        for i, object in pairs(Simulation.objects(simulation)) do
+            --client.send("addObject", { object })
+            client:send("addObject",
+                { i, object.x, object.y, object.width, object.height, object.isFloor, object.isWall });
+        end
+    end)
+
+    Server:on('disconnect', function(data, client)
+        local idx = client:getIndex();
+        print("player " .. idx .. " disconnected.")
+        Simulation.despawn_player(simulation, idx)
+        --world:remove(players[idx]);
+        --players[idx] = nil
+
+        Server:sendToAll("playerDisconnected", idx);
+    end)
+
+    Server:on("playerAnimation", function(data, client)
+        local idx = client:getIndex();
+        Server:sendToAllBut(client, "animationState", { idx, data.animation })
+    end);
+
+    Server:on('playerInput', function(data, client)
+        local idx = client:getIndex();
+        local tick_idx = data.client_tick;
+        Simulation.add_input(simulation, idx, tick_idx, data.player_input)
+        --if players[idx] then
+        --  players[idx].inputs[data.global_index] = data.player_input;
+        --end
+    end)
 end
 
 local function send_player_states()
-  local current_tick = Simulation.current_tick(simulation);
-  for _, player in pairs(Simulation.players(simulation)) do
-    local x, y, idx = player.x, player.y, player.index;
-    Server:sendToAll('playerState', { current_tick, idx, x, y, player.damage })
-  end
+    local current_tick = Simulation.current_tick(simulation);
+    for _, player in pairs(Simulation.players(simulation)) do
+        local x, y, idx = player.x, player.y, player.index;
+        Server:sendToAll('playerState',
+            { current_tick, idx, x, y, player.damage, player.velocity.x, player.velocity.y, player.facing_left })
+    end
 end
 
 function love.update(dt)
-  Server:update()
+    Server:update()
 
-  local did_update, new_objects = Simulation.lockstep_update(simulation, dt);
-  --local did_update, new_objects = Simulation.yolo_update(simulation, dt);
+    local did_update, new_objects = Simulation.lockstep_update(simulation, dt);
+    --local did_update, new_objects = Simulation.yolo_update(simulation, dt);
 
-  if did_update then
-    -- print("sending player data")
-    for _, box in pairs(new_objects) do
-      Server:sendToAll("addObject", { 99999, box.x, box.y, box.width, box.height, box.isFloor, box.isWall });
+    if did_update then
+        -- print("sending player data")
+        --for _, box in pairs(new_objects) do
+        --    Server:sendToAll("addObject", { 99999, box.x, box.y, box.width, box.height, box.isFloor, box.isWall });
+        --end
+        send_player_states()
+        local new_tick = Simulation.current_tick(simulation)
+        Server:sendToAll("finishedUpdate", { tick = new_tick });
     end
-    send_player_states()
-  end
 end
 
 function love.draw()
-  --for _, player in pairs(players) do
-  --  love.graphics.polygon("fill", player.body:getWorldPoints(
-  --    player.shape:getPoints()))
-  --end
-  --for _, object in pairs(objects) do
-  --  love.graphics.polygon("fill", object.body:getWorldPoints(
-  --    object.shape:getPoints()))
-  --end
+    --for _, player in pairs(players) do
+    --  love.graphics.polygon("fill", player.body:getWorldPoints(
+    --    player.shape:getPoints()))
+    --end
+    --for _, object in pairs(objects) do
+    --  love.graphics.polygon("fill", object.body:getWorldPoints(
+    --    object.shape:getPoints()))
+    --end
+
+    love.graphics.push();
+    --love.graphics.scale(0.5);
+    love.graphics.translate(world_size.width * 0.5, world_size.height * 0.5)
+
+    love.graphics.setColor(0, 0, 1, 1)
+
+    for i, player in pairs(Simulation.players(simulation)) do
+        if player.x == nil then
+            goto continue
+        end
+        if i == 1 then
+            love.graphics.setColor(0, 1, 0, 1)
+        else
+            love.graphics.setColor(1, 0, 0, 1)
+        end
+
+        love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
+        ::continue::
+    end
+
+    for _, object in pairs(Simulation.objects(simulation)) do
+        love.graphics.rectangle("fill", object.x, object.y, object.width, object.height)
+    end
+    love.graphics.setColor(1, 1, 1, 1)
+
+    love.graphics.pop();
 end
