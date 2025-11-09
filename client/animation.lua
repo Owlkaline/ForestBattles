@@ -39,7 +39,8 @@ function Animation.new(image_location, size)
         timer = 0,
         play_till_end = false,
         next_animation = nil,
-        next_animation_play_till_end = nil
+        next_animation_play_till_end = nil,
+        pause_at_end = false
     }
 
     return animation
@@ -55,6 +56,10 @@ function Animation.update(animation, dt)
         end
 
         if animation.current_frame >= current_animation.end_frame then
+            if animation.pause_at_end then
+                return;
+            end
+
             if animation.next_animation ~= nil then
                 local next_animation = animation.next_animation;
                 local play_till_end = animation.next_animation_play_till_end;
@@ -104,6 +109,8 @@ function Animation.play_animation(animation, name)
         animation.current_animation = name
         animation.play_till_end = nil
     end
+
+    animation.pause_at_end = false;
 end
 
 function Animation.play_animation_till_finish(animation, name)
@@ -118,6 +125,12 @@ function Animation.play_animation_till_finish(animation, name)
         animation.current_animation = name
         animation.play_till_end = true;
     end
+
+    animation.pause_at_end = false;
+end
+
+function Animation.pause_at_end(animation)
+    animation.pause_at_end = true;
 end
 
 function Animation.draw(animation, x, y, flip)

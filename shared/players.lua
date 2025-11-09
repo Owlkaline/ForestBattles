@@ -39,7 +39,6 @@ function Players.new(x, y, character)
     player.grounded = false;
     player.facing_left = false
     player.timers = {}
-    player.input = {}
     -- player.timers[Attacks.Attack1] = 0
 
     return player;
@@ -122,7 +121,7 @@ function Players.update_world(players, world)
     end
 end
 
-function Players.input(players, world, attack_boxs, global_tick, dt)
+function Players.input(players, current_frame, dt)
     local new_objects = {}
 
     for _, player in pairs(players) do
@@ -131,7 +130,7 @@ function Players.input(players, world, attack_boxs, global_tick, dt)
         local jump_velocity = 300.0;
         local started_grounded = player.grounded;
 
-        local inputs = player.inputs[global_tick];
+        local inputs = player.inputs[current_frame];
         if inputs == nil then
             return new_objects
         end
@@ -162,6 +161,7 @@ function Players.input(players, world, attack_boxs, global_tick, dt)
         else
             player.velocity.x = override_velocity.x;
         end
+
         if started_grounded then
             player.velocity.y = 0;
             --   player.grounded = false;
@@ -176,15 +176,15 @@ function Players.input(players, world, attack_boxs, global_tick, dt)
             --player.body:applyForce(0, -speed)
         end
 
-        local new_boxs = Character.attack(player, inputs);
-        if new_boxs ~= nil then
-            for _, box in pairs(new_boxs) do
-                new_objects[#new_objects + 1] = box
-                attack_boxs[#attack_boxs + 1] = box;
-                world:add(attack_boxs[#attack_boxs], box.x, box.y, box.width, box.height);
-                -- server:sendToAll("addObject", { 99999, box.x, box.y, box.width, box.height });
-            end
-        end
+        new_objects = Character.attack(player, inputs);
+        --if new_boxs ~= nil then
+        --    for _, box in pairs(new_boxs) do
+        --        new_objects[#new_objects + 1] = box
+        --        attack_boxs[#attack_boxs + 1] = box;
+        --        world:add(attack_boxs[#attack_boxs], box.x, box.y, box.width, box.height);
+        --        -- server:sendToAll("addObject", { 99999, box.x, box.y, box.width, box.height });
+        --    end
+        --end
 
         --player.body:applyForce(velocity.x, 0);
         --player.body
