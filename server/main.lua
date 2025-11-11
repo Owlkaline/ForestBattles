@@ -24,6 +24,7 @@ function love.load()
     SetSchemas(Server);
 
     sim = Simulation.new(1);
+    Simulation.debug(sim, true)
     print("simlation created")
     local objects = Map.get_objects(world_size)
     local start_frame = Simulation.latest_frame(sim)
@@ -57,22 +58,22 @@ function love.load()
         for frame, event in pairs(Simulation.events(sim)) do
             if event.type == Events.AddObject then
                 local object = Simulation.get_object_from_frame(sim, frame, event.idx)
-                Client:send("addObject",
+                client:send("addObject",
                     { frame, object.x, object.y, object.width, object.height, object.isFloor, object.isWall, object
                         .isAttackBox });
             elseif event.type == Events.AddPlayer then
                 local player = Simulation.get_player_from_frame(sim, frame, event.idx)
-                Client:send("addPlayer",
+                client:send("addPlayer",
                     { frame, idx, player.x, player.y, player.width, player.height, player.velocity.x, player
                         .velocity.y })
             elseif event.type == Events.RemovePlayer then
-                Client:send("removePlayer", { frame, idx })
+                client:send("removePlayer", { frame, idx })
             end
         end
-        local all_inputs = Simulation.get_all_player_inputs(sim);
+        local all_inputs = Simulation.get_all_inputs(sim);
         for player_idx, inputs in pairs(all_inputs) do
             for frame, input in pairs(inputs) do
-                --     Client:send("addInput", { player_idx, frame, input })
+                client:send("addInput", { player_idx, frame, input })
             end
         end
     end)
@@ -87,8 +88,14 @@ function love.load()
     end)
 
     Server:on("addInput", function(data, client)
-        print("got some input")
         local idx = client:getIndex();
+
+        for key, value in pairs(data.input) do
+            if value == true and key == 3 then
+                print("frame: " .. data.frame .. " - jump was pressed")
+            end
+        end
+
         Simulation.add_input(sim, idx, data.frame, data.input)
 
         Server:sendToAllBut(client, "addInput", { idx, data.frame, data.input })

@@ -174,13 +174,13 @@ function GameState.predict_input(state, player_inputs)
     end
 end
 
-function GameState.progress_frame(state)
+function GameState.progress_frame(state, inputs)
     local dt = state.fixed_dt;
 
     AttackBox.update(state.objects, dt, state.world)
     Players.update_timers(state.players, dt)
     Players.apply_gravity(state.players, dt)
-    local objects = Players.input(state.players, state.frame, dt);
+    local objects = Players.input(state.players, inputs, dt);
     Players.move(state.players, dt)
     Players.update_world(state.players, state.world);
 

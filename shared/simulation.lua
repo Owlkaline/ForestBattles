@@ -1,6 +1,7 @@
 --local bump = require('lib/bump')
 local Rollback = require('shared/rollback')
 local Networking = require('shared/networking')
+local InputManager = require('shared/rb_input')
 
 local simulation = {};
 
@@ -8,8 +9,13 @@ function simulation.new(starting_frame)
     return {
         rb = Rollback.new(starting_frame),
         dt = 0,
-        player_inputs = {}
+        player_inputs = InputManager.new(),
+        debug = false
     }
+end
+
+function simulation.debug(sim, should_debug)
+    sim.debug = should_debug;
 end
 
 function simulation.update(sim, dt) --love.update(dt)
@@ -17,33 +23,48 @@ function simulation.update(sim, dt) --love.update(dt)
 
     if sim.dt >= Networking.tick_rate then
         sim.dt = sim.dt - Networking.tick_rate;
-        Rollback.progress_frame(sim.rb, sim.player_inputs)
+        local current_frame = Rollback.latest_frame(sim.rb);
+        local inputs_for_frame = InputManager.predict_and_get_all_inputs_for_frame(sim.player_inputs, current_frame)
+        Rollback.progress_frame(sim.rb, inputs_for_frame, current_frame)
     end
+end
+
+function simulation.get_all_inputs(sim)
+    local latest_frame = Rollback.latest_frame(sim.rb);
+    return sim.player_inputs.inputs
 end
 
 function simulation.add_input(sim, idx, frame, input)
-    if sim.player_inputs[idx] == nil then
-        sim.player_inputs[idx] = {}
+    if sim.debug then
+        print("adding input, jumped: " .. tostring(input[Action.Jump]))
     end
-
-    sim.player_inputs[idx][frame] = input;
-    Rollback.add_input(sim.rb, idx, frame, input)
+    if InputManager.add_input(sim.player_inputs, idx, frame, input) then
+        -- inputs differ
+        -- do rollback stuff
+        simulation.resimulate_from_frame(sim, frame)
+    end
 end
 
-function simulation.get_all_player_inputs(sim)
-    return sim.player_inputs
-    --return Rollback.get_all_player_inputs(sim.rb)
+function simulation.resimulate_from_frame(sim, frame)
+    local current_frame = Rollback.latest_frame(sim.rb);
+
+    print("resimulating from frame " .. frame .. " to " .. current_frame)
+
+    while frame < current_frame do
+        local inputs_for_frame = InputManager.predict_and_get_all_inputs_for_frame(sim.player_inputs, frame)
+        Rollback.progress_frame(sim.rb, inputs_for_frame, frame)
+        frame = frame + 1;
+    end
 end
 
 function simulation.add_object(sim, frame, x, y, width, height, isFloor, isWall, isAttackBox)
     Rollback.add_object(sim.rb, frame, x, y, width, height, isFloor, isWall, isAttackBox)
+    simulation.resimulate_from_frame(sim, frame)
 end
 
 function simulation.add_player(sim, frame, idx, x, y, width, height, vel_x, vel_y)
-    if sim.player_inputs[idx] == nil then
-        sim.player_inputs[idx] = {}
-    end
     Rollback.add_player(sim.rb, frame, idx, x, y, width, height, vel_x, vel_y)
+    simulation.resimulate_from_frame(sim, frame)
 end
 
 function simulation.latest_frame(sim)
@@ -52,6 +73,7 @@ end
 
 function simulation.remove_player(sim, frame, idx)
     Rollback.remove_player(sim.rb, frame, idx)
+    simulation.resimulate_from_frame(sim, frame)
 end
 
 function simulation.events(sim)

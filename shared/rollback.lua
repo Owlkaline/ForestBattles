@@ -25,7 +25,6 @@ function Rollback.add_object(rb, frame, x, y, width, height, isFloor, isWall, is
         rb.events[frame] = {}
     end
     table.insert(rb.events[frame], { type = Events.AddObject, idx = #rb.game_states[frame].objects })
-    Rollback.recalculate_from_frame(rb, frame)
 end
 
 function Rollback.add_player(rb, frame, idx, x, y, width, height, vel_x, vel_y)
@@ -34,7 +33,6 @@ function Rollback.add_player(rb, frame, idx, x, y, width, height, vel_x, vel_y)
         rb.events[frame] = {}
     end
     table.insert(rb.events[frame], { type = Events.AddPlayer, idx = idx })
-    Rollback.recalculate_from_frame(rb, frame)
 end
 
 function Rollback.remove_player(rb, frame, idx)
@@ -43,7 +41,6 @@ function Rollback.remove_player(rb, frame, idx)
         rb.events[frame] = {}
     end
     rb.events[frame].push({ type = Events.AddPlayer, idx = idx })
-    Rollback.recalculate_from_frame(rb, frame)
 end
 
 function Rollback.get_all_player_inputs(rb)
@@ -65,32 +62,43 @@ function Rollback.get_player_from_frame(rb, frame, player_idx)
 end
 
 function Rollback.latest_state(rb)
-    return rb.game_states[#rb.game_states]
+    return rb.game_states[Rollback.latest_frame(rb)]
 end
 
 function Rollback.latest_frame(rb)
-    return #rb.game_states
+    local latest_frame = 0;
+    for frame, _ in pairs(rb.game_states) do
+        if latest_frame < frame then
+            latest_frame = frame
+        end
+    end
+    return latest_frame
 end
 
-function Rollback.progress_frame(rb, player_inputs)
-    local new_state = GameState.copy(Rollback.latest_state(rb))
+function Rollback.progress_frame(rb, player_inputs, frame)
+    local new_state = GameState.copy(Rollback.get_game_state_at_frame(rb, frame))
     --if #new_state.players == 0 then
     --    return
     --end
 
     Rollback.update_game(new_state, player_inputs)
 
-    rb.game_states[#rb.game_states + 1] = new_state;
+    rb.game_states[frame + 1] = new_state;
+end
+
+function Rollback.get_game_state_at_frame(rb, frame)
+    return rb.game_states[frame]
 end
 
 function Rollback.update_game(new_state, player_inputs)
-    GameState.predict_input(new_state, player_inputs)
-    GameState.progress_frame(new_state)
+    --GameState.predict_input(new_state, player_inputs)
+    GameState.progress_frame(new_state, player_inputs)
 end
 
 function Rollback.add_input(rb, idx, frame, input)
     if frame > #rb.game_states then
         -- this is in the future, we will get there
+        print("future frame discarding")
         return
     end
     local player_inputs = rb.game_states[frame].players[idx].inputs;
@@ -99,55 +107,54 @@ function Rollback.add_input(rb, idx, frame, input)
     Rollback.update_inputs(rb, idx, player_inputs)
 end
 
-function Rollback.update_inputs(rb, idx, inputs)
-    local inputs_not_matching = true
-
-    local frame = #rb.game_states;
-
-    while inputs_not_matching do
-        local state = rb.game_states[frame];
-
-        local result = GameState.matching_inputs(state, idx, inputs);
-        if result == true then
-            --inputs match and are same length
-            inputs_not_matching = false;
-        elseif result == false then
-            -- inputs differ go back a frame
-            frame = frame - 1;
-        else
-            -- Same length game state but the past differs
-            -- result is the frame that has different input
-            if not (type(result) == "boolean") then
-                frame = result
-                inputs_not_matching = false;
-            end
-        end
-    end
-
-    GameState.replace_inputs(rb.game_states[frame], idx, inputs)
-
-    Rollback.recalculate_from_frame(rb, frame)
-end
-
-function Rollback.recalculate_from_frame(rb, last_correct_frame)
-    local goal_frame = Rollback.latest_state(rb).frame;
-
-    if goal_frame == last_correct_frame then
-        return;
-    end
-
-    local not_caught_up = true;
-    while not_caught_up do
-        local new_state = GameState.copy(rb.game_states[last_correct_frame])
-        Rollback.update_game(new_state, {});
-        rb.game_states[last_correct_frame + 1] = new_state
-
-        last_correct_frame = last_correct_frame + 1;
-
-        if last_correct_frame == goal_frame then
-            not_caught_up = false
-        end
-    end
-end
+--function Rollback.update_inputs(rb, idx, inputs)
+--    print("rollback update inputs")
+--    local inputs_not_matching = true
+--
+--    local frame = #rb.game_states;
+--
+--    while inputs_not_matching do
+--        local state = rb.game_states[frame];
+--
+--        local result = GameState.matching_inputs(state, idx, inputs);
+--        if result == true then
+--            --inputs match and are same length
+--            inputs_not_matching = false;
+--        elseif result == false then
+--            -- inputs differ go back a frame
+--            frame = frame - 1;
+--        else
+--            -- Same length game state but the past differs
+--            -- result is the frame that has different input
+--            if not (type(result) == "boolean") then
+--                frame = result
+--                inputs_not_matching = false;
+--            end
+--        end
+--    end
+--
+--    Rollback.recalculate_from_frame(rb, frame)
+--end
+--
+--function Rollback.recalculate_from_frame(rb, last_correct_frame)
+--    local goal_frame = Rollback.latest_state(rb).frame;
+--
+--    if goal_frame == last_correct_frame then
+--        return;
+--    end
+--
+--    local not_caught_up = true;
+--    while not_caught_up do
+--        local new_state = GameState.copy(rb.game_states[last_correct_frame])
+--        Rollback.update_game(new_state, {});
+--        rb.game_states[last_correct_frame + 1] = new_state
+--
+--        last_correct_frame = last_correct_frame + 1;
+--
+--        if last_correct_frame == goal_frame then
+--            not_caught_up = false
+--        end
+--    end
+--end
 
 return Rollback

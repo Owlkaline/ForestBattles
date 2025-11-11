@@ -91,26 +91,26 @@ function love.update(dt)
             --  keys_down_this_tick["w"] = true;
             --end
             if love.keyboard.isDown("a") then
-                keys_down_this_tick["left"] = true;
+                keys_down_this_tick[Action.Left] = true;
                 is_running = true;
             end
             --if love.keyboard.isDown("s") then
             --  keys_down_this_tick["s"] = true;
             --end
             if love.keyboard.isDown("d") then
-                keys_down_this_tick["right"] = true;
+                keys_down_this_tick[Action.Right] = true;
                 is_running = true;
             end
             if love.keyboard.isDown("space") then
-                keys_down_this_tick["jump"] = true;
+                keys_down_this_tick[Action.Jump] = true;
                 jumped = true;
             end
             if love.keyboard.isDown("p") then
-                keys_down_this_tick[Attacks.Attack1] = true
+                keys_down_this_tick[Action.Attack1] = true
                 attack1 = true;
             end
             if love.keyboard.isDown("o") then
-                keys_down_this_tick[Attacks.Attack2] = true
+                keys_down_this_tick[Action.Attack2] = true
                 attack2 = true;
             end
 
@@ -118,23 +118,23 @@ function love.update(dt)
             for _, joystick in pairs(joysticks) do
                 local x_axis, y_axis = joystick:getAxis(1), joystick:getAxis(2);
                 if x_axis < -0.1 then
-                    keys_down_this_tick['left'] = true;
+                    keys_down_this_tick[Action.Left] = true;
                     is_running = true;
                 end
                 if x_axis > 0.1 then
-                    keys_down_this_tick['right'] = true;
+                    keys_down_this_tick[Action.Right] = true;
                     is_running = true;
                 end
                 if joystick:isGamepadDown('x') then
-                    keys_down_this_tick[Attacks.Attack1] = true;
+                    keys_down_this_tick[Action.Attack1] = true;
                     attack1 = true;
                 end
                 if joystick:isGamepadDown('b') then
-                    keys_down_this_tick[Attacks.Attack2] = true;
+                    keys_down_this_tick[Action.Attack2] = true;
                     attack2 = true;
                 end
                 if joystick:isGamepadDown('a') then
-                    keys_down_this_tick['jump'] = true;
+                    keys_down_this_tick[Action.Jump] = true;
                     jumped = true;
                 end
             end
@@ -142,6 +142,8 @@ function love.update(dt)
             local current_frame = Simulation.latest_frame(sim)
             Simulation.update(sim, dt)
             local next_frame = Simulation.latest_frame(sim)
+
+            -- Did progress t oa new frame
             if current_frame ~= next_frame then
                 -- game updates
                 Simulation.add_input(sim, player_num, current_frame, keys_down_this_tick);

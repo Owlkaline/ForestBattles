@@ -16,9 +16,13 @@ function Character.attack(player, inputs)
     end
 end
 
-Attacks = {
-    Attack1 = "Attack1",
-    Attack2 = "Attack2"
+Action = {
+    Left = 1,
+    Right = 2,
+    Jump = 3,
+    Stunned = 4,
+    Attack1 = 5,
+    Attack2 = 6
 }
 
 function Players.new(x, y, character)
@@ -33,7 +37,6 @@ function Players.new(x, y, character)
     player.height = 8
     player.character = character;
     player.damage = 0
-    player.inputs = {}
     player.isPlayer = true
     player.weight = DefaultWeight
     player.grounded = false;
@@ -121,7 +124,7 @@ function Players.update_world(players, world)
     end
 end
 
-function Players.input(players, current_frame, dt)
+function Players.input(players, inputs, dt)
     local new_objects = {}
 
     for _, player in pairs(players) do
@@ -130,7 +133,7 @@ function Players.input(players, current_frame, dt)
         local jump_velocity = 300.0;
         local started_grounded = player.grounded;
 
-        local inputs = player.inputs[current_frame];
+        --local inputs = player.inputs[current_frame];
         if inputs == nil then
             return new_objects
         end
@@ -141,11 +144,11 @@ function Players.input(players, current_frame, dt)
         --if inputs['s'] then
         --  velocity.y = -speed;
         --end
-        if inputs['left'] then
+        if inputs[Action.Left] then
             player.facing_left = true
             override_velocity.x = -speed;
         end
-        if inputs['right'] then
+        if inputs[Action.Right] then
             player.facing_left = false
             override_velocity.x = speed;
         end
@@ -156,7 +159,7 @@ function Players.input(players, current_frame, dt)
 
         --player.body:setLinearVelocity(velocity.x, y)
 
-        if (player.timers['stunned'] or -1) > 0 then
+        if (player.timers[Action.Stunned] or -1) > 0 then
             player.velocity.x = player.velocity.x + override_velocity.x * 0.1
         else
             player.velocity.x = override_velocity.x;
@@ -168,7 +171,7 @@ function Players.input(players, current_frame, dt)
         else
             --    player.velocity.x = player.velocity.x + override_velocity.x * dt * 5.0;
         end
-        if inputs['jump'] and started_grounded then
+        if inputs[Action.Jump] and started_grounded then
             player.velocity.y = -jump_velocity;
             player.grounded = false;
             -- y = -speed;

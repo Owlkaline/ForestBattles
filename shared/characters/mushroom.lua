@@ -18,7 +18,7 @@ end
 function Mushroom.attack(player, inputs)
     local new_attack_box = {}
 
-    if inputs[Attacks.Attack2] and (player.timers[Attacks.Attack1] or 0) <= 0 then
+    if inputs[Action.Attack2] and (player.timers[Action.Attack1] or 0) <= 0 then
         --print("player attacking")
         new_attack_box[#new_attack_box + 1] = {};
 
@@ -42,7 +42,7 @@ function Mushroom.attack(player, inputs)
         player.new_animation = "punching_second_half"
     end
 
-    if inputs[Attacks.Attack1] and (player.timers[Attacks.Attack1] or 0) <= 0 then
+    if inputs[Action.Attack1] and (player.timers[Action.Attack1] or 0) <= 0 then
         --print("player attacking")
         new_attack_box[#new_attack_box + 1] = {};
 
@@ -61,7 +61,7 @@ function Mushroom.attack(player, inputs)
         end
 
         new_attack_box[#new_attack_box] = AttackBox.new(player, duration, direction, knockback_force, x, y, width, height)
-        player.timers[Attacks.Attack1] = 0.5
+        player.timers[Action.Attack1] = 0.5
         player.new_animation = "punching_first_half"
     end
 
