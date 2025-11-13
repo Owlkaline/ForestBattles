@@ -3,108 +3,121 @@ local Rollback = {}
 local GameState = require('shared/game_state')
 
 Events = {
-    AddPlayer = 1,
-    RemovePlayer = 2,
-    AddObject = 3,
+  AddPlayer = 1,
+  RemovePlayer = 2,
+  AddObject = 3,
 }
 
 function Rollback.new(starting_frame)
-    local game_states = {};
-    game_states[starting_frame] = GameState.new(starting_frame)
-    GameState.new_world(game_states[starting_frame])
+  local game_states = {};
+  game_states[starting_frame] = GameState.new(starting_frame)
+  GameState.new_world(game_states[starting_frame])
 
-    return {
-        game_states = game_states,
-        events = {}
-    }
+  return {
+    game_states = game_states,
+    events = {},
+    object_id = 1,
+  }
 end
 
 function Rollback.add_object(rb, frame, x, y, width, height, isFloor, isWall, isAttackBox)
-    GameState.add_object(rb.game_states[frame], x, y, width, height, isFloor, isWall, isAttackBox)
-    if rb.events[frame] == nil then
-        rb.events[frame] = {}
-    end
-    table.insert(rb.events[frame], { type = Events.AddObject, idx = #rb.game_states[frame].objects })
+  rb.object_id = rb.object_id + 1;
+
+  Rollback.add_object_with_id(rb, frame, rb.object_id, x, y, width, height, isFloor, isWall, isAttackBox);
+
+  return rb.object_id
+end
+
+function Rollback.add_object_with_id(rb, frame, idx, x, y, width, height, isFloor, isWall, isAttackBox)
+  print("objects before rb add_object " .. #rb.game_states[frame].objects)
+  GameState.add_object(rb.game_states[frame], idx, x, y, width, height, isFloor, isWall, isAttackBox)
+  print("objects after rb add_object " .. #rb.game_states[frame].objects)
+  if rb.events[frame] == nil then
+    rb.events[frame] = {}
+  end
+
+  print("object idx: " .. idx)
+  table.insert(rb.events[frame], idx, { type = Events.AddObject, idx = idx })
 end
 
 function Rollback.add_player(rb, frame, idx, x, y, width, height, vel_x, vel_y)
-    GameState.add_player(rb.game_states[frame], idx, x, y, width, height, vel_x, vel_y)
-    if rb.events[frame] == nil then
-        rb.events[frame] = {}
-    end
-    table.insert(rb.events[frame], { type = Events.AddPlayer, idx = idx })
+  GameState.add_player(rb.game_states[frame], idx, x, y, width, height, vel_x, vel_y)
+  if rb.events[frame] == nil then
+    rb.events[frame] = {}
+  end
+  table.insert(rb.events[frame], idx, { type = Events.AddPlayer, idx = idx })
 end
 
 function Rollback.remove_player(rb, frame, idx)
-    GameState.remove_player(rb.game_states[frame], idx)
-    if rb.events[frame] == nil then
-        rb.events[frame] = {}
-    end
-    rb.events[frame].push({ type = Events.AddPlayer, idx = idx })
+  GameState.remove_player(rb.game_states[frame], idx)
+  if rb.events[frame] == nil then
+    rb.events[frame] = {}
+  end
+  table.insert(rb.events[frame], idx, { type = Events.RemovePlayer, idx = idx })
 end
 
 function Rollback.get_all_player_inputs(rb)
-    local newest_state = Rollback.latest_state(rb)
-    local all_inputs = {};
-    for idx, player in pairs(newest_state.players) do
-        all_inputs[idx] = player.inputs;
-    end
+  local newest_state = Rollback.latest_state(rb)
+  local all_inputs = {};
+  for idx, player in pairs(newest_state.players) do
+    all_inputs[idx] = player.inputs;
+  end
 
-    return all_inputs
+  return all_inputs
 end
 
 function Rollback.get_object_from_frame(rb, frame, object_idx)
-    return rb.events[frame].objects[object_idx]
+  return Rollback.get_game_state_at_frame(rb, frame).objects[object_idx]
 end
 
 function Rollback.get_player_from_frame(rb, frame, player_idx)
-    return rb.events[frame].players[player_idx]
+  return Rollback.get_game_state_at_frame(rb, frame).players[player_idx]
 end
 
 function Rollback.latest_state(rb)
-    return rb.game_states[Rollback.latest_frame(rb)]
+  return rb.game_states[Rollback.latest_frame(rb)]
 end
 
 function Rollback.latest_frame(rb)
-    local latest_frame = 0;
-    for frame, _ in pairs(rb.game_states) do
-        if latest_frame < frame then
-            latest_frame = frame
-        end
+  local latest_frame = 0;
+  for frame, _ in pairs(rb.game_states) do
+    if latest_frame < frame then
+      latest_frame = frame
     end
-    return latest_frame
+  end
+  return latest_frame
 end
 
 function Rollback.progress_frame(rb, player_inputs, frame)
-    local new_state = GameState.copy(Rollback.get_game_state_at_frame(rb, frame))
-    --if #new_state.players == 0 then
-    --    return
-    --end
+  local new_state = GameState.copy(Rollback.get_game_state_at_frame(rb, frame))
+  --if #new_state.players == 0 then
+  --    return
+  --end
 
-    Rollback.update_game(new_state, player_inputs)
+  Rollback.update_game(new_state, player_inputs)
 
-    rb.game_states[frame + 1] = new_state;
+  rb.game_states[frame + 1] = new_state;
 end
 
 function Rollback.get_game_state_at_frame(rb, frame)
-    return rb.game_states[frame]
+  return rb.game_states[frame]
 end
 
 function Rollback.update_game(new_state, player_inputs)
-    --GameState.predict_input(new_state, player_inputs)
-    GameState.progress_frame(new_state, player_inputs)
+  --GameState.predict_input(new_state, player_inputs)
+  GameState.progress_frame(new_state, player_inputs)
 end
 
 function Rollback.add_input(rb, idx, frame, input)
-    if frame > #rb.game_states then
-        -- this is in the future, we will get there
-        print("future frame discarding")
-        return
-    end
-    local player_inputs = rb.game_states[frame].players[idx].inputs;
-    player_inputs[frame] = input;
+  if frame > #rb.game_states then
+    -- this is in the future, we will get there
+    print("future frame discarding")
+    return
+  end
+  local player_inputs = rb.game_states[frame].players[idx].inputs;
+  player_inputs[frame] = input;
 
-    Rollback.update_inputs(rb, idx, player_inputs)
+  Rollback.update_inputs(rb, idx, player_inputs)
 end
 
 --function Rollback.update_inputs(rb, idx, inputs)

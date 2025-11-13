@@ -15,7 +15,9 @@ local blue_colour = { 0, 0, 1, 1 }
 local player_num = nil;
 local simulation = {}
 
-local world_size = 0;
+--local world_size = {};
+-- TODO: get from server
+local world_size = { width = 320 * 2.0, height = 180 * 2.0 }
 
 local keys_down_this_tick = {}
 
@@ -23,193 +25,203 @@ local background = {}
 local sim = {}
 
 function love.load()
-    Pixel:load();
+  love.window.setTitle("ForstBattles-Client")
+  Pixel:load();
 
-    background = love.graphics.newImage("assets/title-screen.png")
+  background = love.graphics.newImage("assets/title-screen.png")
 
-    Client = sock.newClient("localhost", 22123)
+  Client = sock.newClient("localhost", 22123)
 
-    Client:setSerialization(bitser.dumps, bitser.loads)
+  Client:setSerialization(bitser.dumps, bitser.loads)
 
-    SetSchemas(Client)
+  SetSchemas(Client)
 
-    Client:on("connect", function(data)
-        print("Connected to server")
+  Client:on("connect", function(data)
+    print("Connected to server")
 
-        sim = Simulation.new(1);
-    end);
+    sim = Simulation.new(1);
+  end);
 
-    Client:on("disconnect", function(data)
-        print("Disconnected from server")
-    end);
+  Client:on("disconnect", function(data)
+    print("Disconnected from server")
+  end);
 
-    Client:on("assignPlayerNumber", function(data)
-        print("got assigned number")
-        player_num = data.idx
-        for i = 1, data.current_frame do
-            Simulation.update(sim, Networking.tick_rate)
-        end
-    end)
+  Client:on("assignPlayerNumber", function(data)
+    print("got assigned number")
+    player_num = data.idx
 
-    Client:on("addInput", function(data)
-        print("got add input")
-        local idx = data.idx;
-        Simulation.add_input(sim, idx, data.frame, data.input)
-    end)
+    while Simulation.latest_frame(sim) < data.current_frame do
+      Simulation.update(sim, Networking.tick_rate)
+    end
+    --Simulation.resimulate_from_frame(sim, 1)
+    --sim = Simulation.new(data.current_frame)
+    --for i = 1, data.current_frame do
+    --  Simulation.update(sim, Networking.tick_rate)
+    --end
+  end)
 
-    Client:on("addObject", function(object)
-        print("got add objct")
-        Simulation.add_object(sim, object.frame, object.x, object.y, object.width, object.height, object.isFloor,
-            object.isWall,
-            object.isAttackBox);
-    end)
+  Client:on("addInput", function(data)
+    local idx = data.idx;
+    Simulation.add_inputs_for_frame(sim, idx, data.frame, data.input)
+  end)
 
-    Client:on("addPlayer", function(new_player)
-        print(" got add player")
-        Simulation.add_player(sim, new_player.frame, new_player.idx, new_player.x, new_player.y, new_player.width,
-            new_player.height,
-            new_player.vel_x,
-            new_player.vel_y)
-    end)
+  Client:on("addObject", function(object)
+    print("got add objct: " .. object.idx)
+    Simulation.add_object_with_id(sim, object.frame, object.idx, object.x, object.y, object.width, object.height,
+      object.isFloor,
+      object.isWall,
+      object.isAttackBox);
+    print("finished adding object " .. object.idx)
+  end)
+
+  Client:on("addPlayer", function(new_player)
+    print(" got add player")
+    Simulation.add_player(sim, new_player.frame, new_player.idx, new_player.x, new_player.y, new_player.width,
+      new_player.height,
+      new_player.vel_x,
+      new_player.vel_y)
+  end)
+
+  Client:on("removePlayer", function(player)
+    print("Removing player")
+    Simulation.remove_player(sim, player.frame, player.idx)
+  end)
 
 
-    Client:connect();
+  Client:connect();
 end
 
 function love.update(dt)
-    Client:update();
+  Client:update();
 
-    if player_num then
-        if Client:getState() == 'connected' then
-            local is_running = false;
-            local jumped = false;
-            local attack1 = false;
-            local attack2 = false;
-            --tick = tick + dt;
+  if player_num then
+    if Client:getState() == 'connected' then
+      local is_running = false;
+      local jumped = false;
+      local attack1 = false;
+      local attack2 = false;
+      --tick = tick + dt;
 
-            --if love.keyboard.isDown("w") then
-            --  keys_down_this_tick["w"] = true;
-            --end
-            if love.keyboard.isDown("a") then
-                keys_down_this_tick[Action.Left] = true;
-                is_running = true;
-            end
-            --if love.keyboard.isDown("s") then
-            --  keys_down_this_tick["s"] = true;
-            --end
-            if love.keyboard.isDown("d") then
-                keys_down_this_tick[Action.Right] = true;
-                is_running = true;
-            end
-            if love.keyboard.isDown("space") then
-                keys_down_this_tick[Action.Jump] = true;
-                jumped = true;
-            end
-            if love.keyboard.isDown("p") then
-                keys_down_this_tick[Action.Attack1] = true
-                attack1 = true;
-            end
-            if love.keyboard.isDown("o") then
-                keys_down_this_tick[Action.Attack2] = true
-                attack2 = true;
-            end
+      --if love.keyboard.isDown("w") then
+      --  keys_down_this_tick["w"] = true;
+      --end
+      if love.keyboard.isDown("a") then
+        keys_down_this_tick[Action.Left] = true;
+        is_running = true;
+      end
+      --if love.keyboard.isDown("s") then
+      --  keys_down_this_tick["s"] = true;
+      --end
+      if love.keyboard.isDown("d") then
+        keys_down_this_tick[Action.Right] = true;
+        is_running = true;
+      end
+      if love.keyboard.isDown("space") then
+        keys_down_this_tick[Action.Jump] = true;
+        jumped = true;
+      end
+      if love.keyboard.isDown("p") then
+        keys_down_this_tick[Action.Attack1] = true
+        attack1 = true;
+      end
+      if love.keyboard.isDown("o") then
+        keys_down_this_tick[Action.Attack2] = true
+        attack2 = true;
+      end
 
-            local joysticks = love.joystick.getJoysticks();
-            for _, joystick in pairs(joysticks) do
-                local x_axis, y_axis = joystick:getAxis(1), joystick:getAxis(2);
-                if x_axis < -0.1 then
-                    keys_down_this_tick[Action.Left] = true;
-                    is_running = true;
-                end
-                if x_axis > 0.1 then
-                    keys_down_this_tick[Action.Right] = true;
-                    is_running = true;
-                end
-                if joystick:isGamepadDown('x') then
-                    keys_down_this_tick[Action.Attack1] = true;
-                    attack1 = true;
-                end
-                if joystick:isGamepadDown('b') then
-                    keys_down_this_tick[Action.Attack2] = true;
-                    attack2 = true;
-                end
-                if joystick:isGamepadDown('a') then
-                    keys_down_this_tick[Action.Jump] = true;
-                    jumped = true;
-                end
-            end
+      local joysticks = love.joystick.getJoysticks();
+      --for _, joystick in pairs(joysticks) do
+      --  local x_axis, y_axis = joystick:getAxis(1), joystick:getAxis(2);
+      --  if x_axis < -0.1 then
+      --    keys_down_this_tick[Action.Left] = true;
+      --    is_running = true;
+      --  end
+      --  if x_axis > 0.1 then
+      --    keys_down_this_tick[Action.Right] = true;
+      --    is_running = true;
+      --  end
+      --  if joystick:isGamepadDown('x') then
+      --    keys_down_this_tick[Action.Attack1] = true;
+      --    attack1 = true;
+      --  end
+      --  if joystick:isGamepadDown('b') then
+      --    keys_down_this_tick[Action.Attack2] = true;
+      --    attack2 = true;
+      --  end
+      --  if joystick:isGamepadDown('a') then
+      --    keys_down_this_tick[Action.Jump] = true;
+      --    jumped = true;
+      --  end
+      --end
 
-            local current_frame = Simulation.latest_frame(sim)
-            Simulation.update(sim, dt)
-            local next_frame = Simulation.latest_frame(sim)
+      local current_frame = Simulation.latest_frame(sim)
+      Simulation.update(sim, dt)
+      local next_frame = Simulation.latest_frame(sim)
 
-            -- Did progress t oa new frame
-            if current_frame ~= next_frame then
-                -- game updates
-                Simulation.add_input(sim, player_num, current_frame, keys_down_this_tick);
-                Client:send("addInput", { player_num, current_frame, keys_down_this_tick })
-                keys_down_this_tick = {}
-            end
-        end
-
-        if sim.rb.game_states[#sim.rb.game_states][player_num] ~= nil then
-            Pixel:followEntity(sim.rb.game_states[#sim.rb.game_states][player_num], world_size);
-        end
+      -- Did progress t oa new frame
+      if current_frame ~= next_frame then
+        -- game updates
+        Simulation.add_inputs_for_frame(sim, player_num, current_frame, keys_down_this_tick);
+        Client:send("addInput", { player_num, current_frame, keys_down_this_tick })
+        keys_down_this_tick = {}
+      end
     end
+
+    local players = Simulation.get_players(sim);
+    if players[player_num] ~= nil then
+      Pixel:followEntity(players[player_num], world_size);
+    end
+  end
 end
 
 function love.draw()
-    Pixel:startDraw();
+  Pixel:startDraw();
 
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.draw(background, -Pixel.canvas:getWidth() * 0.5, -Pixel.canvas:getHeight() * 0.5)
+  love.graphics.setColor(1, 1, 1)
+  love.graphics.draw(background, -Pixel.canvas:getWidth() * 0.5, -Pixel.canvas:getHeight() * 0.5)
 
-    if player_num == nil then
-        Pixel:endDraw()
-        return
+  if player_num == nil then
+    Pixel:endDraw()
+    return
+  end
+
+  for i, player in pairs(Simulation.get_players(sim)) do
+    if player.x == nil then
+      goto continue
     end
-
-    local game_state = sim.rb.game_states[#sim.rb.game_states]
-
-    for i, player in pairs(game_state.players) do
-        if player.x == nil then
-            goto continue
-        end
-        if i == 1 then
-            love.graphics.setColor(0, 1, 0, 1)
-        else
-            love.graphics.setColor(1, 0, 0, 1)
-        end
-
-        --Animation.draw(player.animation, player.x, player.y, player.facing_left)
-        --love.graphics.draw(SpriteSheetExample, SpriteSheetFrames[CurrentFrame], player.x, player.y); --, player.width, player.height)
-        love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
-        --love.graphics.rectangle("fill", player.x + player.width * 0.5, player.y - player.height, player.width,   player.height)
-        ::continue::
-    end
-
-    love.graphics.setColor(0, 0, 1, 1)
-    for _, object in pairs(game_state.objects) do
-        love.graphics.rectangle("fill", object.x, object.y, object.width, object.height)
-    end
-    love.graphics.setColor(1, 1, 1, 1)
-
-    Pixel:endDraw();
-
-    local current_tick = game_state.frame;
-
-    love.graphics.print(
-        Client:getState() .. " Current Tick: " .. current_tick,
-        5, 5)
-    --love.graphics.print(
-    --    Client:getState() .. " Current Tick: " .. current_tick .. " Difference: " .. current_tick - server_tick,
-    --    5, 5)
-    if player_num then
-        love.graphics.print("Player " .. player_num, 5, 25)
-        -- love.graphics.print("Damage " .. Simulation.players(simulation)[player_num].damage .. "%", 5, 45)
+    if i == 1 then
+      love.graphics.setColor(0, 1, 0, 1)
     else
-        love.graphics.print("No player number assigned", 5, 25)
+      love.graphics.setColor(1, 0, 0, 1)
     end
+
+    --Animation.draw(player.animation, player.x, player.y, player.facing_left)
+    --love.graphics.draw(SpriteSheetExample, SpriteSheetFrames[CurrentFrame], player.x, player.y); --, player.width, player.height)
+    love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
+    --love.graphics.rectangle("fill", player.x + player.width * 0.5, player.y - player.height, player.width,   player.height)
+    ::continue::
+  end
+
+  love.graphics.setColor(0, 0, 1, 1)
+  for i, object in pairs(Simulation.get_objects(sim)) do
+    love.graphics.rectangle("fill", object.x, object.y, object.width, object.height)
+  end
+  love.graphics.setColor(1, 1, 1, 1)
+
+  Pixel:endDraw();
+
+  love.graphics.print(
+    Client:getState() .. " Current Tick: " .. Simulation.latest_frame(sim),
+    5, 5)
+  --love.graphics.print(
+  --    Client:getState() .. " Current Tick: " .. current_tick .. " Difference: " .. current_tick - server_tick,
+  --    5, 5)
+  if player_num then
+    love.graphics.print("Player " .. player_num, 5, 25)
+    -- love.graphics.print("Damage " .. Simulation.players(simulation)[player_num].damage .. "%", 5, 45)
+  else
+    love.graphics.print("No player number assigned", 5, 25)
+  end
 end
 
 --local background = {};
