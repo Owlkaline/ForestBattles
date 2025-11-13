@@ -33,7 +33,8 @@ function love.load()
   for _, object in pairs(objects) do
     Simulation.add_object(sim, start_frame, object.x, object.y, object.width, object.height, object.isFloor,
       object.isWall,
-      object.isAttackBox);
+      object.isAttackBox,
+      object.isDeath);
   end
 
   print("objects added")
@@ -63,18 +64,24 @@ function love.load()
 
     for frame, events in pairs(Simulation.events(sim)) do
       for _, event in pairs(events) do
-        print("Event: " .. tostring(event))
-        print("frame " .. frame .. " :" .. " " .. tostring(event.idx) .. " " .. tostring(event.type))
         if event.type == Events.AddObject then
-          print("Event idx: " .. event.idx)
           local object = Simulation.get_object_from_frame(sim, frame, event.idx)
           client:send("addObject",
-            { frame, event.idx, object.x, object.y, object.width, object.height, object.isFloor, object.isWall, object
-                .isAttackBox });
+            { frame,
+              event.idx,
+              object.x,
+              object.y,
+              object.width,
+              object.height,
+              object.isFloor,
+              object.isWall,
+              object.isAttackBox,
+              object.isDeath
+            });
         elseif event.type == Events.AddPlayer then
           local player = Simulation.get_player_from_frame(sim, frame, event.idx)
           client:send("addPlayer",
-            { frame, idx, player.x, player.y, player.width, player.height, player.velocity.x, player
+            { frame, event.idx, player.x, player.y, player.width, player.height, player.velocity.x, player
                 .velocity.y })
         elseif event.type == Events.RemovePlayer then
           client:send("removePlayer", { frame, idx })
@@ -110,19 +117,19 @@ end
 function love.update(dt)
   Server:update()
 
-  local new_input = false;
-  local keys_down_this_tick = {}
-  if love.keyboard.isDown("space") then
-    keys_down_this_tick[3] = true;
-    new_input = true;
-  end
+  --local new_input = false;
+  --local keys_down_this_tick = {}
+  --if love.keyboard.isDown("space") then
+  --  keys_down_this_tick[3] = true;
+  --  new_input = true;
+  --end
 
-  if love.keyboard.isDown("a") then
-    keys_down_this_tick[1] = true;
-    new_input = true;
-  end
+  --if love.keyboard.isDown("a") then
+  --  keys_down_this_tick[1] = true;
+  --  new_input = true;
+  --end
 
-  Simulation.add_inputs_for_frame(sim, 1, Simulation.latest_frame(sim) - 1, keys_down_this_tick)
+  --Simulation.add_inputs_for_frame(sim, 1, Simulation.latest_frame(sim) - 1, keys_down_this_tick)
 
   Simulation.update(sim, dt)
 end

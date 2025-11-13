@@ -134,9 +134,7 @@ function GameState.add_player(state, idx, x, y, width, height, vel_x, vel_y)
   state.world:add(state.players[idx], x, y, width, height)
 end
 
-function GameState.add_object(state, idx, x, y, width, height, isFloor, isWall, isAttackBox)
-  print("objects before state: " .. #state.objects)
-  print("object idx: " .. idx)
+function GameState.add_object(state, idx, x, y, width, height, isFloor, isWall, isAttackBox, isDeath)
   state.objects[idx] = {
     x = x,
     y = y,
@@ -144,10 +142,10 @@ function GameState.add_object(state, idx, x, y, width, height, isFloor, isWall, 
     height = height,
     isFloor = isFloor,
     isWall = isWall,
-    isAttackBox = isAttackBox
+    isAttackBox = isAttackBox,
+    isDeath = isDeath
   }
 
-  print("objects after state: " .. #state.objects)
   state.world:add(state.objects[idx], x, y, width, height)
 end
 

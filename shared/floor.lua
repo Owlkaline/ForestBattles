@@ -7,7 +7,9 @@ function Floor.new(x, y, width, height)
     width = width,
     height = height,
     isWall = true,
-    isFloor = true
+    isFloor = true,
+    isDeath = false,
+    isAttackBox = false
   }
 end
 

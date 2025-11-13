@@ -20,23 +20,20 @@ function Rollback.new(starting_frame)
   }
 end
 
-function Rollback.add_object(rb, frame, x, y, width, height, isFloor, isWall, isAttackBox)
+function Rollback.add_object(rb, frame, x, y, width, height, isFloor, isWall, isAttackBox, isDeath)
   rb.object_id = rb.object_id + 1;
 
-  Rollback.add_object_with_id(rb, frame, rb.object_id, x, y, width, height, isFloor, isWall, isAttackBox);
+  Rollback.add_object_with_id(rb, frame, rb.object_id, x, y, width, height, isFloor, isWall, isAttackBox, isDeath);
 
   return rb.object_id
 end
 
-function Rollback.add_object_with_id(rb, frame, idx, x, y, width, height, isFloor, isWall, isAttackBox)
-  print("objects before rb add_object " .. #rb.game_states[frame].objects)
-  GameState.add_object(rb.game_states[frame], idx, x, y, width, height, isFloor, isWall, isAttackBox)
-  print("objects after rb add_object " .. #rb.game_states[frame].objects)
+function Rollback.add_object_with_id(rb, frame, idx, x, y, width, height, isFloor, isWall, isAttackBox, isDeath)
+  GameState.add_object(rb.game_states[frame], idx, x, y, width, height, isFloor, isWall, isAttackBox, isDeath)
   if rb.events[frame] == nil then
     rb.events[frame] = {}
   end
 
-  print("object idx: " .. idx)
   table.insert(rb.events[frame], idx, { type = Events.AddObject, idx = idx })
 end
 

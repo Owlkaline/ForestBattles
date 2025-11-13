@@ -20,6 +20,7 @@ function simulation.debug(sim, should_debug)
 end
 
 function simulation.update(sim, dt) --love.update(dt)
+  local updated = false;
   sim.dt = sim.dt + dt;
 
   if sim.dt >= Networking.tick_rate then
@@ -28,7 +29,10 @@ function simulation.update(sim, dt) --love.update(dt)
     local inputs_for_frame = InputManager.predict_and_get_all_inputs_for_frame(sim.player_inputs, sim.active_players,
       current_frame)
     Rollback.progress_frame(sim.rb, inputs_for_frame, current_frame)
+    updated = true;
   end
+
+  return updated
 end
 
 function simulation.get_all_inputs(sim)
@@ -51,9 +55,7 @@ end
 function simulation.resimulate_from_frame(sim, frame)
   local current_frame = Rollback.latest_frame(sim.rb);
 
-  print("resimulating from frame " .. frame .. " to " .. current_frame)
 
-  print("number of objects: " .. #Rollback.latest_state(sim.rb).objects)
   while frame < current_frame do
     local inputs_for_frame = InputManager.predict_and_get_all_inputs_for_frame(sim.player_inputs, sim.active_players,
       frame)
@@ -62,15 +64,15 @@ function simulation.resimulate_from_frame(sim, frame)
   end
 end
 
-function simulation.add_object(sim, frame, x, y, width, height, isFloor, isWall, isAttackBox)
-  local id = Rollback.add_object(sim.rb, frame, x, y, width, height, isFloor, isWall, isAttackBox)
+function simulation.add_object(sim, frame, x, y, width, height, isFloor, isWall, isAttackBox, isDeath)
+  local id = Rollback.add_object(sim.rb, frame, x, y, width, height, isFloor, isWall, isAttackBox, isDeath)
   simulation.resimulate_from_frame(sim, frame)
 
   return id
 end
 
-function simulation.add_object_with_id(sim, frame, idx, x, y, width, height, isFloor, isWall, isAttackBox)
-  Rollback.add_object_with_id(sim.rb, frame, idx, x, y, width, height, isFloor, isWall, isAttackBox)
+function simulation.add_object_with_id(sim, frame, idx, x, y, width, height, isFloor, isWall, isAttackBox, isDeath)
+  Rollback.add_object_with_id(sim.rb, frame, idx, x, y, width, height, isFloor, isWall, isAttackBox, isDeath)
   simulation.resimulate_from_frame(sim, frame)
 end
 

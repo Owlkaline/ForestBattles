@@ -50,7 +50,7 @@ function love.load()
     print("got assigned number")
     player_num = data.idx
 
-    while Simulation.latest_frame(sim) < data.current_frame do
+    while Simulation.latest_frame(sim) <= data.current_frame do
       Simulation.update(sim, Networking.tick_rate)
     end
     --Simulation.resimulate_from_frame(sim, 1)
@@ -66,16 +66,14 @@ function love.load()
   end)
 
   Client:on("addObject", function(object)
-    print("got add objct: " .. object.idx)
     Simulation.add_object_with_id(sim, object.frame, object.idx, object.x, object.y, object.width, object.height,
       object.isFloor,
       object.isWall,
-      object.isAttackBox);
-    print("finished adding object " .. object.idx)
+      object.isAttackBox, object.isDeath);
   end)
 
   Client:on("addPlayer", function(new_player)
-    print(" got add player")
+    print(" got add player: " .. new_player.idx)
     Simulation.add_player(sim, new_player.frame, new_player.idx, new_player.x, new_player.y, new_player.width,
       new_player.height,
       new_player.vel_x,
@@ -109,6 +107,11 @@ function love.update(dt)
         keys_down_this_tick[Action.Left] = true;
         is_running = true;
       end
+
+      if love.keyboard.isDown("r") then
+        Simulation.resimulate_from_frame(sim, 50);
+      end
+
       --if love.keyboard.isDown("s") then
       --  keys_down_this_tick["s"] = true;
       --end
@@ -154,15 +157,14 @@ function love.update(dt)
       --  end
       --end
 
-      local current_frame = Simulation.latest_frame(sim)
-      Simulation.update(sim, dt)
-      local next_frame = Simulation.latest_frame(sim)
+
 
       -- Did progress t oa new frame
-      if current_frame ~= next_frame then
+      if Simulation.update(sim, dt) then
+        local previous_frame = Simulation.latest_frame(sim) - 1;
         -- game updates
-        Simulation.add_inputs_for_frame(sim, player_num, current_frame, keys_down_this_tick);
-        Client:send("addInput", { player_num, current_frame, keys_down_this_tick })
+        Simulation.add_inputs_for_frame(sim, player_num, previous_frame, keys_down_this_tick);
+        Client:send("addInput", { player_num, previous_frame, keys_down_this_tick })
         keys_down_this_tick = {}
       end
     end
