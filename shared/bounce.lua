@@ -6,9 +6,11 @@ function BounceSurface.new(x, y, width, height)
     y = y,
     width = width,
     height = height,
+    isFloor = false,
     isWall = true,
     isBounce = false,
-    isDeath = true
+    isDeath = true,
+    isAttackBox = false
   }
 end
 
