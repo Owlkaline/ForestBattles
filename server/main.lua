@@ -39,10 +39,10 @@ function love.load()
 
   print("objects added")
 
-  --= local new_player = Players.new(0, -10, Character.Mushroom)
-  --= Simulation.add_player(sim, 1, 1, new_player.x, new_player.y, new_player.width, new_player.height,
-  --=   new_player.velocity
-  --=   .x, new_player.velocity.y)
+  -- local new_player = Players.new(0, -10, Character.Mushroom)
+  -- Simulation.add_player(sim, 1, 2, new_player.x, new_player.y, new_player.width, new_player.height,
+  --   new_player.velocity
+  --   .x, new_player.velocity.y)
 
   Server:on("connect", function(data, client)
     print("client connected")
@@ -52,8 +52,19 @@ function love.load()
 
     local new_player = Players.new(0, -10, Character.Mushroom)
 
+    local state = sim.rb.game_states[Simulation.latest_frame(sim)];
+    print("Number of players on send: " .. #state.players)
+    local worldless_game_state =
+    {
+      players = state.players,
+      objects = state.objects,
+      inputs = sim.player_inputs,
+      frame = state.frame,
+      fixed_dt = state.fixed_dt
+    }
+
     print("Player " .. idx .. " connected")
-    client:send("assignPlayerNumber", { idx, current_frame })
+    client:send("assignPlayerNumber", { idx, current_frame, worldless_game_state })
 
     Simulation.add_player(sim, current_frame, idx, new_player.x, new_player.y, new_player.width, new_player.height,
       new_player.velocity
@@ -62,38 +73,38 @@ function love.load()
       { current_frame, idx, new_player.x, new_player.y, new_player.width, new_player.height, new_player.velocity.x,
         new_player.velocity.y })
 
-    for frame, events in pairs(Simulation.events(sim)) do
-      for _, event in pairs(events) do
-        if event.type == Events.AddObject then
-          local object = Simulation.get_object_from_frame(sim, frame, event.idx)
-          client:send("addObject",
-            { frame,
-              event.idx,
-              object.x,
-              object.y,
-              object.width,
-              object.height,
-              object.isFloor,
-              object.isWall,
-              object.isAttackBox,
-              object.isDeath
-            });
-        elseif event.type == Events.AddPlayer then
-          local player = Simulation.get_player_from_frame(sim, frame, event.idx)
-          client:send("addPlayer",
-            { frame, event.idx, player.x, player.y, player.width, player.height, player.velocity.x, player
-                .velocity.y })
-        elseif event.type == Events.RemovePlayer then
-          client:send("removePlayer", { frame, idx })
-        end
-      end
-    end
-    local all_inputs = Simulation.get_all_inputs(sim);
-    for player_idx, inputs_per_player in pairs(all_inputs) do
-      for frame, inputs_on_frame in pairs(inputs_per_player) do
-        client:send("addInput", { player_idx, frame, inputs_on_frame })
-      end
-    end
+    -- for frame, events in pairs(Simulation.events(sim)) do
+    --   for _, event in pairs(events) do
+    --     if event.type == Events.AddObject then
+    --       local object = Simulation.get_object_from_frame(sim, frame, event.idx)
+    --       client:send("addObject",
+    --         { frame,
+    --           event.idx,
+    --           object.x,
+    --           object.y,
+    --           object.width,
+    --           object.height,
+    --           object.isFloor,
+    --           object.isWall,
+    --           object.isAttackBox,
+    --           object.isDeath
+    --         });
+    --     elseif event.type == Events.AddPlayer then
+    --       local player = Simulation.get_player_from_frame(sim, frame, event.idx)
+    --       client:send("addPlayer",
+    --         { frame, event.idx, player.x, player.y, player.width, player.height, player.velocity.x, player
+    --             .velocity.y })
+    --     elseif event.type == Events.RemovePlayer then
+    --       client:send("removePlayer", { frame, idx })
+    --     end
+    --   end
+    -- end
+    -- local all_inputs = Simulation.get_all_inputs(sim);
+    -- for player_idx, inputs_per_player in pairs(all_inputs) do
+    --   for frame, inputs_on_frame in pairs(inputs_per_player) do
+    --     client:send("addInput", { player_idx, frame, inputs_on_frame })
+    --   end
+    -- end
   end)
 
   Server:on('disconnect', function(data, client)
@@ -160,6 +171,10 @@ function love.draw()
     love.graphics.rectangle("fill", object.x, object.y, object.width, object.height)
   end
   love.graphics.setColor(1, 1, 1, 1)
+
+  love.graphics.print(
+    " Current Tick: " .. Simulation.latest_frame(sim),
+    5, 5)
 
   love.graphics.pop();
 end

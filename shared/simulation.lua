@@ -11,7 +11,7 @@ function simulation.new(starting_frame)
     dt = 0,
     player_inputs = InputManager.new(),
     debug = false,
-    active_players = {}
+    active_players = {},
   }
 end
 
@@ -19,9 +19,29 @@ function simulation.debug(sim, should_debug)
   sim.debug = should_debug;
 end
 
+function simulation.setGameState(sim, new_state)
+  sim.player_inputs = new_state.inputs;
+
+  sim.rb.game_states[new_state.frame].fixed_dt = new_state.fixed_dt;
+  for idx, player in pairs(new_state.players) do
+    simulation.add_player(sim, new_state.frame, idx, player.x, player.y,
+      player.width, player.height, player.velocity.x, player.velocity.y)
+  end
+  for idx, object in pairs(new_state.objects) do
+    simulation.add_object_with_id(sim, new_state.frame, idx, object.x, object.y,
+      object.width, object.height, object.isFloor, object.isWall,
+      object.isAttackBox, object.isDeath)
+  end
+end
+
 function simulation.update(sim, dt) --love.update(dt)
   local updated = false;
-  sim.dt = sim.dt + dt;
+
+  if sim.frame_catchup ~= nil then
+    sim.dt = Networking.tick_rate;
+  else
+    sim.dt = sim.dt + dt;
+  end
 
   if sim.dt >= Networking.tick_rate then
     sim.dt = sim.dt - Networking.tick_rate;
@@ -87,6 +107,9 @@ function simulation.latest_frame(sim)
 end
 
 function simulation.remove_player(sim, frame, idx)
+  if frame > simulation.latest_frame(sim) then
+    frame = simulation.latest_frame(sim)
+  end
   table.remove(sim.active_players, idx);
   Rollback.remove_player(sim.rb, frame, idx)
   simulation.resimulate_from_frame(sim, frame)

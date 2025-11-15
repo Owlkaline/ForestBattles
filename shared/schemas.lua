@@ -11,7 +11,7 @@ function SetSchemas(client_server)
     "isAttackBox",
     "isDeath"
   })
-  client_server:setSchema("assignPlayerNumber", { "idx", "current_frame" })
+  client_server:setSchema("assignPlayerNumber", { "idx", "current_frame", "game_state" })
   client_server:setSchema('addPlayer', {
     "frame",
     "idx",

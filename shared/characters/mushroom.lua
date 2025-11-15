@@ -1,13 +1,13 @@
 local Mushroom = {};
 
-local Animation = require('client/animation')
+local Animation = require('shared/animation')
 
 function Mushroom.animation()
   local spriteSheetAnimation = Animation.new('assets/mushroom_spritesheet.png', 32)
   Animation.add_animation(spriteSheetAnimation, "idle", 1, 1, true);
   Animation.add_animation(spriteSheetAnimation, "running", 17, 26, true);
-  Animation.add_animation(spriteSheetAnimation, "jump", 33, 46, false);   -- 52, false)
-  Animation.add_animation(spriteSheetAnimation, "land", 47, 52, false);   -- 52, false)
+  Animation.add_animation(spriteSheetAnimation, "jump", 33, 46, false); -- 52, false)
+  Animation.add_animation(spriteSheetAnimation, "land", 47, 52, false); -- 52, false)
   Animation.add_animation(spriteSheetAnimation, "punching_first_half", 65, 67, false);
   Animation.add_animation(spriteSheetAnimation, "punching_second_half", 68, 70, false);
   Animation.play_animation(spriteSheetAnimation, "idle")
@@ -38,8 +38,11 @@ function Mushroom.attack(player, inputs)
     end
 
     new_attack_box[#new_attack_box] = AttackBox.new(player, duration, direction, knockback_force, x, y, width, height)
-    player.timers[Attacks.Attack2] = 0.5
-    player.new_animation = "punching_second_half"
+    player.timers[Action.Attack2] = 0.5
+    -- player.new_animation = "punching_second_half"
+    if player.animation ~= nil then
+      Animation.play_animation(player.animation, "punching_second_half")
+    end
   end
 
   if inputs[Action.Attack1] and (player.timers[Action.Attack1] or 0) <= 0 then
@@ -62,7 +65,10 @@ function Mushroom.attack(player, inputs)
 
     new_attack_box[#new_attack_box] = AttackBox.new(player, duration, direction, knockback_force, x, y, width, height)
     player.timers[Action.Attack1] = 0.5
-    player.new_animation = "punching_first_half"
+    --    player.new_animation = "punching_first_half"
+    if player.animation ~= nil then
+      Animation.play_animation(player.animation, "punching_first_half")
+    end
   end
 
   return new_attack_box

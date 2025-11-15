@@ -26,7 +26,8 @@ local push = function(world, col, x, y, w, h, goalX, goalY, filter)
 
   local cols, len = world:project(col.item, x, y, w, h, goalX, goalY, filter)
 
-  if col.item.grounded then
+
+  if move.x ~= 0 then --col.item.grounded then
     if col.item.x > col.other.x then
       col.other.x = goalX - col.other.width;
     else
@@ -116,22 +117,33 @@ function GameState.new_world(state)
 end
 
 function GameState.remove_player(state, idx)
-  state.world:remove(state.players[idx]);
-  state.players[idx] = nil;
+  if state.players[idx] ~= nil then
+    state.world:remove(state.players[idx]);
+    state.players[idx] = nil;
+  end
 end
 
 function GameState.add_player(state, idx, x, y, width, height, vel_x, vel_y)
-  state.players[idx] = {
-    x = x,
-    y = y,
-    width = width,
-    height = height,
-    velocity = { x = vel_x, y = vel_y },
-    inputs = {},
-    weight = 8,
-    timers = {}
-  }
-  state.world:add(state.players[idx], x, y, width, height)
+  if state == nil then
+    print("GAME STATE IS NIL")
+    return
+  end
+  if IsClient == true then
+    state.players[idx] = Players.new_with_animation(idx, x, y, Character.Mushroom);
+  else
+    state.players[idx] = Players.new(idx, x, y, Character.Mushroom);
+  end
+  --state.players[idx] = {
+  --x = x,
+  --y = y,
+  --width = width,
+  --height = height,
+  --velocity = { x = vel_x, y = vel_y },
+  --inputs = {},
+  --weight = 8,
+  --timers = {}
+  --}
+  state.world:add(state.players[idx], x, y, state.players[idx].width, state.players[idx].height)
 end
 
 function GameState.add_object(state, idx, x, y, width, height, isFloor, isWall, isAttackBox, isDeath)

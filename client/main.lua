@@ -1,13 +1,16 @@
 local bitser = require('lib/bitser')
 local sock = require('lib/sock')
+local Animation = require('shared/animation')
 
 local Networking = require('shared/networking')
 local Simulation = require('shared/simulation')
 require('shared/players')
 require('shared/schemas')
 require('pixel')
+
+IsClient = true;
+
 local Mushroom = require('shared/characters/mushroom')
-local Animation = require('animation')
 
 local green_colour = { 0, 1, 0, 1 }
 local blue_colour = { 0, 0, 1, 1 }
@@ -47,25 +50,25 @@ function love.load()
   end);
 
   Client:on("assignPlayerNumber", function(data)
-    print("got assigned number")
+    print("got assigned number, game state starts from frame: " .. data.game_state.frame)
     player_num = data.idx
 
-    while Simulation.latest_frame(sim) <= data.current_frame do
-      Simulation.update(sim, Networking.tick_rate)
-    end
-    --Simulation.resimulate_from_frame(sim, 1)
-    --sim = Simulation.new(data.current_frame)
-    --for i = 1, data.current_frame do
-    --  Simulation.update(sim, Networking.tick_rate)
-    --end
+    sim = Simulation.new(data.game_state.frame);
+    Simulation.setGameState(sim, data.game_state)
   end)
 
   Client:on("addInput", function(data)
+    if player_num == nil then
+      return
+    end
     local idx = data.idx;
     Simulation.add_inputs_for_frame(sim, idx, data.frame, data.input)
   end)
 
   Client:on("addObject", function(object)
+    if player_num == nil then
+      return
+    end
     Simulation.add_object_with_id(sim, object.frame, object.idx, object.x, object.y, object.width, object.height,
       object.isFloor,
       object.isWall,
@@ -73,14 +76,27 @@ function love.load()
   end)
 
   Client:on("addPlayer", function(new_player)
-    print(" got add player: " .. new_player.idx)
-    Simulation.add_player(sim, new_player.frame, new_player.idx, new_player.x, new_player.y, new_player.width,
+    if player_num == nil then
+      return
+    end
+
+    local frame = new_player.frame;
+    if Simulation.latest_frame(sim) < frame then
+      frame = Simulation.latest_frame(sim)
+    end
+
+    print(" got add player: " ..
+      new_player.idx .. " on frame " .. new_player.frame .. "  current frame: " .. Simulation.latest_frame(sim))
+    Simulation.add_player(sim, frame, new_player.idx, new_player.x, new_player.y, new_player.width,
       new_player.height,
       new_player.vel_x,
       new_player.vel_y)
   end)
 
   Client:on("removePlayer", function(player)
+    if player_num == nil then
+      return
+    end
     print("Removing player")
     Simulation.remove_player(sim, player.frame, player.idx)
   end)
@@ -157,15 +173,17 @@ function love.update(dt)
       --  end
       --end
 
-
-
       -- Did progress t oa new frame
       if Simulation.update(sim, dt) then
-        local previous_frame = Simulation.latest_frame(sim) - 1;
+        local previous_frame = Simulation.latest_frame(sim);
         -- game updates
         Simulation.add_inputs_for_frame(sim, player_num, previous_frame, keys_down_this_tick);
         Client:send("addInput", { player_num, previous_frame, keys_down_this_tick })
         keys_down_this_tick = {}
+      end
+
+      for _, player in pairs(Simulation.get_players(sim)) do
+        Animation.update(player.animation, dt);
       end
     end
 
@@ -192,14 +210,14 @@ function love.draw()
       goto continue
     end
     if i == 1 then
-      love.graphics.setColor(0, 1, 0, 1)
+      love.graphics.setColor(0.8, 1, 0.8, 1)
     else
-      love.graphics.setColor(1, 0, 0, 1)
+      love.graphics.setColor(1, 0.8, 0.8, 1)
     end
 
-    --Animation.draw(player.animation, player.x, player.y, player.facing_left)
+    Animation.draw(player.animation, player.x, player.y, player.facing_left)
     --love.graphics.draw(SpriteSheetExample, SpriteSheetFrames[CurrentFrame], player.x, player.y); --, player.width, player.height)
-    love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
+    --love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
     --love.graphics.rectangle("fill", player.x + player.width * 0.5, player.y - player.height, player.width,   player.height)
     ::continue::
   end

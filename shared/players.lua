@@ -1,5 +1,6 @@
 require('shared/attack_box')
 Mushroom = require('shared/characters/mushroom')
+local Animation = require('shared/animation')
 
 Players = {}
 
@@ -25,7 +26,7 @@ Action = {
   Attack2 = 6
 }
 
-function Players.new(x, y, character)
+function Players.new(idx, x, y, character)
   local player = {}
   player.x = x
   player.y = y
@@ -40,9 +41,22 @@ function Players.new(x, y, character)
   player.isPlayer = true
   player.weight = DefaultWeight
   player.grounded = false;
+  player.grounded_last_frame = false;
   player.facing_left = false
   player.timers = {}
+  player.action = nil;
+  player.index = idx;
   -- player.timers[Attacks.Attack1] = 0
+
+  return player;
+end
+
+function Players.new_with_animation(idx, x, y, character)
+  local player = Players.new(idx, x, y, character);
+
+  local animation = Mushroom.animation();
+
+  player.animation = animation
 
   return player;
 end
@@ -88,13 +102,17 @@ end
 function Players.update_world(players, world)
   for _, player in pairs(players) do
     local new_x, new_y, cols, len = world:move(player, player.x, player.y, Players.filter());
+    local started_grounded = player.grounded;
     player.x = new_x;
     player.y = new_y;
     player.grounded = false
+
+    local did_collide_with_floor = false;
+
     for j = 1, len do
       if cols[j].other.isDeath then
         player.x = 0;
-        player.y = -10;
+        player.y = -50;
         world:update(player, player.x, player.y)
         player.velocity.x = 0;
         player.velocity.y = 0;
@@ -116,8 +134,19 @@ function Players.update_world(players, world)
       end
 
       if cols[j].other.isFloor then
+        did_collide_with_floor = true;
         if cols[j].normal.y < 0 then
           player.grounded = true;
+          player.velocity.y = 0;
+
+          -- we were jumping but then landed
+          if player.animation ~= nil then
+            if player.action == Action.Jump and started_grounded == true then
+              print("landed")
+              Animation.play_animation_till_finish(player.animation, "land");
+              player.action = nil
+            end
+          end
         end
       end
     end
@@ -133,28 +162,44 @@ function Players.input(players, players_inputs_for_frame, dt)
     local jump_velocity = 300.0;
     local started_grounded = player.grounded;
 
+    --if player.animation ~= nil then
+    --  Animation.play_animation(player.animation, "idle")
+    --end
+
     --local inputs = player.inputs[current_frame];
-    if players_inputs_for_frame == nil then
+    if players_inputs_for_frame == nil or players_inputs_for_frame[i] == nil then
       print("No input at all - no players")
       return new_objects
     end
 
+
     local inputs = players_inputs_for_frame[i]
 
-    --if inputs['w'] then
-    --  velocity.y = speed;
-    --end
-    --if inputs['s'] then
-    --  velocity.y = -speed;
-    --end
+    if player.action ~= Action.Jump then
+      if player.animation ~= nil then
+        Animation.play_animation(player.animation, "idle")
+      end
+    end
+
     if inputs[Action.Left] then
       player.facing_left = true
       override_velocity.x = -speed;
+      if player.animation ~= nil then
+        if player.grounded then
+          Animation.play_animation(player.animation, "running")
+        end
+      end
       --  print("Player moving left now")
     end
     if inputs[Action.Right] then
       player.facing_left = false
       override_velocity.x = speed;
+
+      if player.animation ~= nil then
+        if player.grounded then
+          Animation.play_animation(player.animation, "running")
+        end
+      end
     end
 
     --local x, y = player.body:getLinearVelocity();
@@ -169,15 +214,22 @@ function Players.input(players, players_inputs_for_frame, dt)
       player.velocity.x = override_velocity.x;
     end
 
-    if started_grounded then
-      player.velocity.y = 0;
-      --   player.grounded = false;
-    else
-      --    player.velocity.x = player.velocity.x + override_velocity.x * dt * 5.0;
-    end
+    --if started_grounded then
+    --  player.velocity.y = 0;
+    --  --   player.grounded = false;
+    --else
+    --  --    player.velocity.x = player.velocity.x + override_velocity.x * dt * 5.0;
+    --end
     if inputs[Action.Jump] and started_grounded then
       player.velocity.y = -jump_velocity;
-      player.grounded = false;
+      --player.grounded = false;
+      if player.animation ~= nil then
+        print("jumpping")
+        Animation.play_animation(player.animation, "jump");
+        Animation.reset_animation(player.animation)
+        Animation.pause_at_end(player.animation)
+        player.action = Action.Jump;
+      end
       -- y = -speed;
       -- player.body:applyLinearImpulse(0, -speed * 0.5 * dt);
       --player.body:applyForce(0, -speed)
