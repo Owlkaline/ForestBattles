@@ -1,6 +1,8 @@
 require('shared/attack_box')
 Mushroom = require('shared/characters/mushroom')
 local Animation = require('shared/animation')
+local Attack = require('shared/attacks')
+local NewAnimation = require('shared/new_animation')
 
 Players = {}
 
@@ -23,7 +25,8 @@ Action = {
   Jump = 3,
   Stunned = 4,
   Attack1 = 5,
-  Attack2 = 6
+  Attack2 = 6,
+  SpecialAttack = 7
 }
 
 function Players.new(idx, x, y, character)
@@ -46,7 +49,15 @@ function Players.new(idx, x, y, character)
   player.timers = {}
   player.action = nil;
   player.index = idx;
+  player.gravity_enabled = true;
   -- player.timers[Attacks.Attack1] = 0
+  if character == Character.Mushroom then
+    player.attacks = {}
+    player.attacks[Action.Attack1] = Mushroom.punch_combo();
+    player.attacks[Action.Attack2] = Mushroom.kick();
+    player.attacks[Action.SpecialAttack] = Mushroom.special_attack();
+    player.jump = Mushroom.jump();
+  end
 
   return player;
 end
@@ -88,7 +99,9 @@ end
 
 function Players.apply_gravity(players, dt)
   for _, player in pairs(players) do
-    player.velocity.y = player.velocity.y + player.weight * 98.0 * dt;
+    if player.gravity_enabled then
+      player.velocity.y = player.velocity.y + player.weight * 98.0 * dt;
+    end
   end
 end
 
@@ -140,17 +153,26 @@ function Players.update_world(players, world)
           player.velocity.y = 0;
 
           -- we were jumping but then landed
-          if player.animation ~= nil then
-            if player.action == Action.Jump and started_grounded == true then
-              print("landed")
-              Animation.play_animation_till_finish(player.animation, "land");
-              player.action = nil
-            end
-          end
+          --if started_grounded == false then
+          --  NewAnimation.start_new_animation(player.jump, player)
+          --  -- start the land animation
+          --  player.jump.current_frame = 33 + 12;
+          --  player.action = nil
+          --end
         end
       end
     end
+    if player.grounded == false and player.velocity.y > 0 then
+      if Players.is_attacking(player) == false and NewAnimation.is_active(player.jump) == false then
+        NewAnimation.start_new_animation(player.jump, player);
+        player.jump.current_frame = 33 + 6
+      end
+    end
   end
+end
+
+function Players.is_stunned(player)
+  return (player.timers[Action.Stunned] or -1) > 0
 end
 
 function Players.input(players, players_inputs_for_frame, dt)
@@ -162,80 +184,69 @@ function Players.input(players, players_inputs_for_frame, dt)
     local jump_velocity = 300.0;
     local started_grounded = player.grounded;
 
-    --if player.animation ~= nil then
-    --  Animation.play_animation(player.animation, "idle")
-    --end
-
-    --local inputs = player.inputs[current_frame];
     if players_inputs_for_frame == nil or players_inputs_for_frame[i] == nil then
       print("No input at all - no players")
       return new_objects
     end
 
-
     local inputs = players_inputs_for_frame[i]
 
-    if player.action ~= Action.Jump then
-      if player.animation ~= nil then
-        Animation.play_animation(player.animation, "idle")
-      end
-    end
+    local player_is_attacking = Players.is_attacking(player)
+    local player_is_not_attacking = player_is_attacking == false
 
-    if inputs[Action.Left] then
-      player.facing_left = true
-      override_velocity.x = -speed;
-      if player.animation ~= nil then
-        if player.grounded then
-          Animation.play_animation(player.animation, "running")
+    if player_is_not_attacking then
+      -- idle
+      if player.action ~= Action.Jump and Players.is_stunned(player) == false then
+        if player.animation ~= nil then
+          Animation.play_animation(player.animation, "idle")
         end
       end
-      --  print("Player moving left now")
-    end
-    if inputs[Action.Right] then
-      player.facing_left = false
-      override_velocity.x = speed;
 
-      if player.animation ~= nil then
-        if player.grounded then
-          Animation.play_animation(player.animation, "running")
+      -- run left
+      if inputs[Action.Left] then
+        player.facing_left = true
+        override_velocity.x = -speed;
+        if player.animation ~= nil then
+          if player.grounded then
+            Animation.play_animation(player.animation, "running")
+          end
         end
+        --  print("Player moving left now")
+      end
+
+      -- run right
+      if inputs[Action.Right] then
+        player.facing_left = false
+        override_velocity.x = speed;
+
+        if player.animation ~= nil then
+          if player.grounded then
+            Animation.play_animation(player.animation, "running")
+          end
+        end
+      end
+
+      -- Jump
+      if NewAnimation.is_active(player.jump) then
+        NewAnimation.update_frame(player.jump, player, inputs)
+      elseif started_grounded then
+        NewAnimation.update_frame(player.jump, player, inputs)
       end
     end
 
-    --local x, y = player.body:getLinearVelocity();
-
-    --player.body:setLinearVelocity(velocity.x, y)
-
-    --player.body:setLinearVelocity(velocity.x, y)
-
-    if (player.timers[Action.Stunned] or -1) > 0 then
+    if Players.is_stunned(player) or player_is_attacking then
       player.velocity.x = player.velocity.x + override_velocity.x * 0.1
     else
       player.velocity.x = override_velocity.x;
     end
 
-    --if started_grounded then
-    --  player.velocity.y = 0;
-    --  --   player.grounded = false;
-    --else
-    --  --    player.velocity.x = player.velocity.x + override_velocity.x * dt * 5.0;
-    --end
-    if inputs[Action.Jump] and started_grounded then
-      player.velocity.y = -jump_velocity;
-      --player.grounded = false;
-      if player.animation ~= nil then
-        print("jumpping")
-        Animation.play_animation(player.animation, "jump");
-        Animation.reset_animation(player.animation)
-        Animation.pause_at_end(player.animation)
-        player.action = Action.Jump;
+    for _, attack in pairs(player.attacks) do
+      if player_is_not_attacking or (player_is_attacking and Attack.is_active(attack)) then
+        Attack.update_frame(attack, player, inputs)
       end
-      -- y = -speed;
-      -- player.body:applyLinearImpulse(0, -speed * 0.5 * dt);
-      --player.body:applyForce(0, -speed)
     end
 
-    new_objects = Character.attack(player, inputs);
+    --new_objects = Character.attack(player, inputs);
     --if new_boxs ~= nil then
     --    for _, box in pairs(new_boxs) do
     --        new_objects[#new_objects + 1] = box
@@ -244,12 +255,52 @@ function Players.input(players, players_inputs_for_frame, dt)
     --        -- server:sendToAll("addObject", { 99999, box.x, box.y, box.width, box.height });
     --    end
     --end
-
-    --player.body:applyForce(velocity.x, 0);
-    --player.body
   end
 
   return new_objects
+end
+
+function Players.is_attacking(player)
+  local is_attacking = false
+  for _, attack in pairs(player.attacks) do
+    if Attack.is_active(attack) then
+      is_attacking = true
+    end
+  end
+
+  return is_attacking
+end
+
+function Players.get_active_attack(player)
+  local attack = nil
+  for _, atk in pairs(player.attacks) do
+    if Attack.is_active(atk) then
+      attack = atk;
+      break;
+    end
+  end
+
+  return attack
+end
+
+function Players.draw(player)
+  if Players.is_attacking(player) then
+    local active_attack = Players.get_active_attack(player);
+    Attack.draw(active_attack, player)
+  elseif NewAnimation.is_active(player.jump) then
+    NewAnimation.draw(player.jump, player)
+  else
+    Animation.draw(player.animation, player.x, player.y, player.facing_left)
+  end
+
+  --local start = 97;
+  --for i = start, start + 11 do
+  --  --print(i)
+  --  Animation.draw_frame(player.animation, i, player.x + player.width * 2 * (i - 11 - start),
+  --    player.y - player.height * 2.0,
+  --    player
+  --    .facing_left);
+  --end
 end
 
 return Players;

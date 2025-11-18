@@ -115,6 +115,12 @@ function Animation.play_animation(animation, name)
   animation.pause_at_end = false;
 end
 
+function Animation.get_frames_in_current_animation(animation)
+  local anim = animation.animations[animation.current_animation];
+
+  return anim.end_frame - anim.start_frame
+end
+
 function Animation.reset_animation(animation)
   animation.current_frame = animation.animations[animation.current_animation].start_frame
   animation.timer = frame_duration
@@ -149,6 +155,18 @@ function Animation.draw(animation, x, y, flip)
   local draw_offset = animation.frame_size * 0.5;
 
   love.graphics.draw(animation.image, animation.frames[animation.current_frame], x, y, 0, mirror, 1, draw_offset,
+    draw_offset)
+end
+
+function Animation.draw_frame(animation, frame, x, y, flip)
+  local mirror = 1;
+  if flip then
+    mirror = -1
+  end
+
+  local draw_offset = animation.frame_size * 0.5;
+
+  love.graphics.draw(animation.image, animation.frames[frame], x, y, 0, mirror, 1, draw_offset,
     draw_offset)
 end
 
