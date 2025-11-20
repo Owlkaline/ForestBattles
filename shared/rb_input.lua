@@ -14,6 +14,10 @@ function InputManager.add_inputs_for_frame(im, id, frame, inputs)
     end
   end
 
+  if im.inputs == nil then
+    im.inputs = {}
+  end
+
   if im.inputs[id] == nil then
     im.inputs[id] = {};
   end

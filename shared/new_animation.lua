@@ -2,6 +2,20 @@ local NewAnimation = {};
 
 local Animation = require('shared/animation')
 
+function AnimationModifyPlayerAtStart(player)
+  if player.grounded then
+    player.velocity.x = 0
+  end
+end
+
+function AnimationModifyPlayerAtEnd(player)
+  player.gravity_enabled = true
+end
+
+function NoneContinous(player, animation)
+
+end
+
 function NewAnimation.new(name, num_frames, start_frame, input)
   return {
     input = input,
@@ -17,17 +31,9 @@ function NewAnimation.new(name, num_frames, start_frame, input)
     stall_frames = 0, -- Extra frames to wait at end of animation
     input_was_release = false,
     is_active = false,
-    modify_player_at_start = function(player)
-      if player.grounded then
-        player.velocity.x = 0
-      end
-    end,
-    modify_player_at_end = function(player)
-      player.gravity_enabled = true
-    end,
-    check_continously = function(player, animation)
-
-    end
+    modify_player_at_start = AnimationModifyPlayerAtStart,
+    modify_player_at_end = AnimationModifyPlayerAtEnd,
+    check_continously = NoneContinous
   }
 end
 
@@ -102,7 +108,6 @@ function NewAnimation.update_frame(new_animation, player, all_inputs)
   else
     new_animation.frame_active_for = new_animation.frame_active_for + 1;
     if new_animation.frame_active_for > new_animation.frame_duration then
-      print("New jump frame: " .. new_animation.current_frame)
       new_animation.frame_active_for = 0
       new_animation.current_frame = new_animation.current_frame + 1;
       if new_animation.requirement_at_frame[new_animation.current_frame] ~= nil then

@@ -6,6 +6,7 @@ local Networking = require('shared/networking')
 local Simulation = require('shared/simulation')
 
 local Attack = require('shared/attacks')
+local NewAnimation = require('shared/new_animation')
 
 require('shared/players')
 require('shared/schemas')
@@ -36,8 +37,9 @@ function love.load()
 
   background = love.graphics.newImage("assets/title-screen.png")
 
-  Client = sock.newClient("owlkaline.com", 22123)
-  bitser.register('attacks', Attack)
+  Client = sock.newClient("localhost", 22123)
+
+  RegisterFunctions(bitser)
   Client:setSerialization(bitser.dumps, bitser.loads)
 
   SetSchemas(Client)
@@ -53,9 +55,15 @@ function love.load()
   end);
 
   Client:on("assignPlayerNumber", function(data)
+    print(data.game_state.players)
+    print(data.game_state.objects)
+    print(data.game_state.inputs)
+    print(data.game_state.frame)
+    print(data.game_state.fixed_dt)
     print("got assigned number, game state starts from frame: " .. data.game_state.frame)
     player_num = data.idx
 
+    print(data.game_state.inputs)
     sim = Simulation.new(data.game_state.frame);
     Simulation.setGameState(sim, data.game_state)
   end)
@@ -223,11 +231,14 @@ function love.draw()
   love.graphics.print(
     Client:getState() .. " Current Tick: " .. Simulation.latest_frame(sim),
     5, 5)
-  --love.graphics.print(
-  --    Client:getState() .. " Current Tick: " .. current_tick .. " Difference: " .. current_tick - server_tick,
-  --    5, 5)
+  love.graphics.print(
+    Client:getState(),
+    5, 5)
   if player_num then
     love.graphics.print("Player " .. player_num, 5, 25)
+    love.graphics.print("Ping: " .. Client:getRoundTripTime(), 5, 45)
+    love.graphics.print("Received: " .. string.format("%.2f", Client:getTotalReceivedData() / 1024) .. "kb", 5, 85);
+    love.graphics.print("Sent: " .. string.format("%.2f", Client:getTotalSentData() / 1024) .. "kb", 5, 105);
     -- love.graphics.print("Damage " .. Simulation.players(simulation)[player_num].damage .. "%", 5, 45)
   else
     love.graphics.print("No player number assigned", 5, 25)

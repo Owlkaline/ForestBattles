@@ -3,6 +3,7 @@ local sock = require('lib/sock')
 
 local bump = require('lib/bump')
 local Attack = require('shared/attacks')
+local NewAnimation = require('shared/new_animation')
 
 require('shared/useful')
 require('shared/players')
@@ -17,11 +18,11 @@ local world_size = { width = 320 * 2.0, height = 180 * 2.0 }
 
 local sim = {};
 
-
 function love.load()
   love.window.setTitle("ForstBattles-Server")
   Server = sock.newServer("*", 22123);
-  bitser.register('attacks', Attack)
+
+  RegisterFunctions(bitser)
   Server:setSerialization(bitser.dumps, bitser.loads)
   print("Server started.")
   SetSchemas(Server);
@@ -52,12 +53,16 @@ function love.load()
     local state = sim.rb.game_states[Simulation.latest_frame(sim)];
     local worldless_game_state =
     {
-      players = state.players,
       objects = state.objects,
       inputs = sim.player_inputs,
       frame = state.frame,
       fixed_dt = state.fixed_dt
     }
+
+    print(worldless_game_state.objects)
+    print(worldless_game_state.inputs)
+    print(worldless_game_state.frame)
+    print(worldless_game_state.fixed_dt)
 
     print("Player " .. idx .. " connected")
     client:send("assignPlayerNumber", { idx, current_frame, worldless_game_state })
@@ -65,9 +70,15 @@ function love.load()
     Simulation.add_player(sim, current_frame, idx, new_player.x, new_player.y, new_player.width, new_player.height,
       new_player.velocity
       .x, new_player.velocity.y)
-    Server:sendToAll("addPlayer",
+    Server:sendToAllBut(client, "addPlayer",
       { current_frame, idx, new_player.x, new_player.y, new_player.width, new_player.height, new_player.velocity.x,
         new_player.velocity.y })
+
+    for _, player in pairs(Simulation.get_players(sim)) do
+      client:send("addPlayer",
+        { current_frame, player.index, player.x, player.y, player.width, player.height, player.velocity.x,
+          player.velocity.y })
+    end
   end)
 
   Server:on('disconnect', function(data, client)

@@ -6,66 +6,72 @@ local NewAnimation = require('shared/new_animation')
 
 local punch_one_combo_window = 0.1;
 
-function Mushroom.jump()
-  local total_frames = 14
-  local start_frame = 33;
+function Yeet(player)
+  player.velocity.y = -300.0;
+  return true
+end
 
-  local frames_to_wait = 12;
+function WaitTillTop(player)
+  return player.velocity.y > -80
+end
 
-  local jump = NewAnimation.new("jump", total_frames, start_frame, Action.Jump);
+function Landed(player)
+  return player.grounded
+end
 
-  local frame_to_start_jump = start_frame + 3;
-  local function yeet(player)
-    print("jump up")
-    player.velocity.y = -300.0;
-    return true
+function None(player)
+  return false
+end
+
+function MushroomSpecialStart(player)
+  player.grounded = false;
+  local spin_velocity = 300.0;
+  if player.facing_left then
+    spin_velocity = -spin_velocity;
   end
-  NewAnimation.add_requirement_at_frame(jump, frame_to_start_jump, yeet);
+  player.velocity.x = spin_velocity;
+  player.velocity.y = 0
+  player.gravity_enabled = false;
+end
 
-  local going_up_frame = start_frame + 5;
-  local function wait_till_top(player)
-    print("wait till top")
-    print(player.velocity.y)
-    return player.velocity.y > -80
-  end
-  NewAnimation.add_requirement_at_frame(jump, going_up_frame, wait_till_top);
+function MushroomSpecialEnd(player)
+  player.gravity_enabled = true;
+  player.velocity.x = 0;
+end
 
-  local going_down_frame = start_frame + 11;
-  NewAnimation.add_requirement_at_frame(jump, going_down_frame, function() return false end);
-
-  local landing_frame_start = start_frame + 12;
-  local function landed(player)
-    return player.grounded
-  end
-  NewAnimation.add_requirement_at_frame(jump, landing_frame_start, landed);
-
-  local function continous(player, animation)
-    if animation.current_frame > frame_to_start_jump + 1 and animation.current_frame < landing_frame_start then
-      if player.grounded then
-        --print("landed")
-        animation.current_frame = landing_frame_start
-      end
+function JumpContinous(player, animation)
+  local jump_start_frame = 33;
+  local frame_to_start_jump = jump_start_frame + 3;
+  local landing_frame_start = jump_start_frame + 12;
+  if animation.current_frame > frame_to_start_jump + 1 and animation.current_frame < landing_frame_start then
+    if player.grounded then
+      animation.current_frame = landing_frame_start
     end
   end
-  jump.check_continously = continous;
+end
 
-  --local end_of_first_punch = 67
-  --Attack.add_combo_at_frame(attack, end_of_first_punch, frames_to_wait);
+function Mushroom.jump()
+  local total_frames = 14
 
-  --local hitbox_offset = { x = 0, y = 0 };
-  --local hitbox_size = { width = 10, height = 10 };
-  --Attack.add_hitbox_at_frame(attack, end_of_first_punch, hitbox_offset, hitbox_size);
+  local frames_to_wait = 12;
+  local jump_start_frame = 33;
+  local frame_to_start_jump = jump_start_frame + 3;
+  local landing_frame_start = jump_start_frame + 12;
 
-  --local end_of_second_punch = 69
-  --Attack.add_combo_at_frame(attack, end_of_second_punch, frames_to_wait);
+  local jump = NewAnimation.new("jump", total_frames, jump_start_frame, Action.Jump);
 
-  --hitbox_offset = { x = 0, y = 0 };
-  --hitbox_size = { width = 10, height = 10 };
-  --Attack.add_hitbox_at_frame(attack, end_of_second_punch, hitbox_offset, hitbox_size);
+  NewAnimation.add_requirement_at_frame(jump, frame_to_start_jump, Yeet);
 
-  --local end_of_third_punch = 72
-  --Attack.add_hitbox_at_frame(attack, end_of_third_punch, hitbox_offset, hitbox_size);
-  --Attack.add_combo_at_frame(attack, end_of_third_punch, frames_to_wait);
+  local going_up_frame = jump_start_frame + 5;
+
+  NewAnimation.add_requirement_at_frame(jump, going_up_frame, WaitTillTop);
+
+  local going_down_frame = jump_start_frame + 11;
+  NewAnimation.add_requirement_at_frame(jump, going_down_frame, None);
+
+  NewAnimation.add_requirement_at_frame(jump, landing_frame_start, Landed);
+
+  jump.check_continously = JumpContinous;
 
   return jump
 end
@@ -120,24 +126,10 @@ function Mushroom.special_attack()
   local start_frame = 97;
 
   local attack = Attack.new("special", total_frames, start_frame, Action.SpecialAttack);
-  local function modify_player_at_start(player)
-    player.grounded = false;
-    local spin_velocity = 300.0;
-    if player.facing_left then
-      spin_velocity = -spin_velocity;
-    end
-    player.velocity.x = spin_velocity;
-    player.velocity.y = 0
-    player.gravity_enabled = false;
-  end
 
-  Attack.modify_player_at_start(attack, modify_player_at_start)
+  Attack.modify_player_at_start(attack, MushroomSpecialStart)
 
-  local function modify_player_at_end(player)
-    player.gravity_enabled = true;
-    player.velocity.x = 0;
-  end
-  Attack.modify_player_at_end(attack, modify_player_at_end)
+  Attack.modify_player_at_end(attack, MushroomSpecialEnd)
   --local hitbox_offset = { x = 0, y = 0 };
   --local hitbox_size = { width = 10, height = 10 };
   --Attack.add_hitbox_at_frame(attack, 76, hitbox_offset, hitbox_size)

@@ -1,9 +1,9 @@
 --local bump = require('lib/bump')
-local Rollback = require('shared/rollback')
-local Networking = require('shared/networking')
+local Rollback     = require('shared/rollback')
+local Networking   = require('shared/networking')
 local InputManager = require('shared/rb_input')
 
-local simulation = {};
+local simulation   = {};
 
 function simulation.new(starting_frame)
   return {
@@ -20,13 +20,15 @@ function simulation.debug(sim, should_debug)
 end
 
 function simulation.setGameState(sim, new_state)
+  print(new_state.inputs)
   sim.player_inputs = new_state.inputs;
 
   sim.rb.game_states[new_state.frame].fixed_dt = new_state.fixed_dt;
-  for idx, player in pairs(new_state.players) do
-    simulation.add_player(sim, new_state.frame, idx, player.x, player.y,
-      player.width, player.height, player.velocity.x, player.velocity.y)
-  end
+  -- for idx, player in pairs(new_state.players) do
+  --   print(idx .. " velocity: " .. tostring(player.velocity));
+  --   simulation.add_player(sim, new_state.frame, idx, player.x, player.y,
+  --     player.width, player.height, player.velocity.x, player.velocity.y)
+  -- end
   for idx, object in pairs(new_state.objects) do
     simulation.add_object_with_id(sim, new_state.frame, idx, object.x, object.y,
       object.width, object.height, object.isFloor, object.isWall,

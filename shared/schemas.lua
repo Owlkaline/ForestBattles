@@ -37,42 +37,19 @@ function SetSchemas(client_server)
     "x",
     "y"
   })
+end
 
-  --client_server:setSchema('playerInput', {
-  --    "client_tick",
-  --    "player_input"
-  --})
-  --client_server:setSchema('spawnPlayer', {
-  --    "index",
-  --    "x",
-  --    "y",
-  --    "global_tick"
-  --})
-  --client_server:setSchema("worldSize", { "width", "height" })
-  --client_server:setSchema('playerState', {
-  --    "global_tick",
-  --    "index",
-  --    "x",
-  --    "y",
-  --    "damage",
-  --    "vel_x",
-  --    "vel_y",
-  --    "facing_left"
-  --})
-  --client_server:setSchema('addObject', {
-  --    "idx",
-  --    "x",
-  --    "y",
-  --    "width",
-  --    "height",
-  --    "isFloor",
-  --    "isWall"
-  --})
-  --client_server:setSchema("playerAnimation", {
-  --    "animation"
-  --});
-  --client_server:setSchema("animationState", {
-  --    "idx",
-  --    "animation"
-  --})
+function RegisterFunctions(bitser)
+  bitser.register("modify_player_at_start_default", ModifyPlayerAtStart)
+  bitser.register("modify_player_at_end_default", ModifyPlayerAtEnd)
+  bitser.register("yeet", Yeet)
+  bitser.register("wait_till_top", WaitTillTop)
+  bitser.register("landed", Landed)
+  bitser.register("none", None)
+  bitser.register("animation_modify_player_at_start_default", AnimationModifyPlayerAtStart)
+  bitser.register("animation_modify_player_at_end_default", AnimationModifyPlayerAtEnd)
+  bitser.register("animation_none_continous", NoneContinous)
+  bitser.register("mushroom_special_start", MushroomSpecialStart)
+  bitser.register("mushroom_special_end", MushroomSpecialEnd)
+  bitser.register("jump_continous", JumpContinous)
 end

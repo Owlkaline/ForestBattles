@@ -2,6 +2,16 @@ local Attack = {};
 
 local Animation = require('shared/animation')
 
+function ModifyPlayerAtStart(player)
+  if player.grounded then
+    player.velocity.x = 0
+  end
+end
+
+function ModifyPlayerAtEnd(player)
+  player.gravity_enabled = true
+end
+
 function Attack.new(name, num_frames, start_frame, input)
   return {
     input = input,
@@ -17,14 +27,8 @@ function Attack.new(name, num_frames, start_frame, input)
     stall_frames = 0, -- Extra frames to wait at end of animation
     input_was_release = false,
     is_active = false,
-    modify_player_at_start = function(player)
-      if player.grounded then
-        player.velocity.x = 0
-      end
-    end,
-    modify_player_at_end = function(player)
-      player.gravity_enabled = true
-    end
+    modify_player_at_start = ModifyPlayerAtStart,
+    modify_player_at_end = ModifyPlayerAtEnd
   }
 end
 
